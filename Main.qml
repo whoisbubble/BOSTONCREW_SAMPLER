@@ -1,0 +1,225 @@
+pragma ComponentBehavior: Bound
+
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Window
+
+ApplicationWindow {
+    id: root
+
+    width: 608
+    height: 500
+    minimumWidth: 610
+    minimumHeight: 390
+    maximumWidth: 794
+    maximumHeight: 1080
+    visible: true
+    title: "BOSTONCREW SAMPLER"
+    color: "transparent"
+    flags: Qt.FramelessWindowHint | Qt.Window
+
+    // qmllint disable unqualified
+    readonly property var backend: samplerBackend
+    // qmllint enable unqualified
+    readonly property bool maximized: visibility === Window.Maximized
+
+    onClosing: root.backend.saveAll()
+
+    background: Rectangle {
+        color: "transparent"
+    }
+
+    Rectangle {
+        id: windowShadow
+        anchors.fill: parent
+        anchors.margins: root.maximized ? 0 : 3
+        radius: root.maximized ? 0 : 17
+        color: AppTheme.shadow
+        opacity: root.maximized ? 0 : 0.5
+    }
+
+    Rectangle {
+        id: frame
+        anchors.fill: parent
+        anchors.margins: root.maximized ? 0 : 5
+        radius: root.maximized ? 0 : 15
+        color: AppTheme.border
+
+        Rectangle {
+            id: shell
+            anchors.fill: parent
+            anchors.margins: root.maximized ? 0 : 1
+            radius: root.maximized ? 0 : 14
+            color: AppTheme.background
+            border.color: AppTheme.alpha(AppTheme.accent, 0.2)
+            border.width: 1
+            clip: true
+
+            TitleBar {
+                id: titleBar
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                height: 42
+                backend: root.backend
+                maximized: root.maximized
+                onHostRequested: hostPopup.open()
+                onRemoteRequested: remoteWindow.openRemote()
+                onMinimizeRequested: root.showMinimized()
+                onMaximizeRequested: root.maximized ? root.showNormal() : root.showMaximized()
+                onCloseRequested: {
+                    root.backend.saveAll()
+                    Qt.quit()
+                }
+            }
+
+            DashboardView {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: titleBar.bottom
+                anchors.bottom: parent.bottom
+                backend: root.backend
+                timerRunning: timerWindow.running
+                onAssignQuickSlotRequested: function(index) {
+                    assignPopup.openFor(index)
+                }
+                onEditSampleRequested: function(index, sampleName, volume, stopSounds, sampleColor) {
+                    sampleDialog.openEditor(index, sampleName, volume, stopSounds, sampleColor)
+                }
+                onEditSlideRequested: function(index, folderName, slideType) {
+                    slideDialog.openEditor(index, folderName, slideType)
+                }
+                onTimerRequested: timerWindow.openTimer()
+                onManagerRequested: slideManagerWindow.openManager()
+                onPreviewRequested: previewSelectWindow.openPreview()
+            }
+        }
+    }
+
+    WindowResizeHandle {
+        visible: !root.maximized
+        edge: Qt.LeftEdge
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: thickness
+    }
+
+    WindowResizeHandle {
+        visible: !root.maximized
+        edge: Qt.RightEdge
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: thickness
+    }
+
+    WindowResizeHandle {
+        visible: !root.maximized
+        edge: Qt.TopEdge
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        height: thickness
+    }
+
+    WindowResizeHandle {
+        visible: !root.maximized
+        edge: Qt.BottomEdge
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        height: thickness
+    }
+
+    WindowResizeHandle {
+        visible: !root.maximized
+        edge: Qt.LeftEdge | Qt.TopEdge
+        anchors.left: parent.left
+        anchors.top: parent.top
+        width: thickness + 5
+        height: thickness + 5
+    }
+
+    WindowResizeHandle {
+        visible: !root.maximized
+        edge: Qt.RightEdge | Qt.TopEdge
+        anchors.right: parent.right
+        anchors.top: parent.top
+        width: thickness + 5
+        height: thickness + 5
+    }
+
+    WindowResizeHandle {
+        visible: !root.maximized
+        edge: Qt.LeftEdge | Qt.BottomEdge
+        anchors.left: parent.left
+        anchors.bottom: parent.bottom
+        width: thickness + 5
+        height: thickness + 5
+    }
+
+    WindowResizeHandle {
+        visible: !root.maximized
+        edge: Qt.RightEdge | Qt.BottomEdge
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        width: thickness + 5
+        height: thickness + 5
+    }
+
+    AssignSlidePopup {
+        id: assignPopup
+        parent: Overlay.overlay
+        backend: root.backend
+    }
+
+    SampleDialog {
+        id: sampleDialog
+        parent: Overlay.overlay
+        backend: root.backend
+    }
+
+    SlideDialog {
+        id: slideDialog
+        parent: Overlay.overlay
+        backend: root.backend
+    }
+
+    HostPopup {
+        id: hostPopup
+        parent: Overlay.overlay
+        backend: root.backend
+    }
+
+    SlideManagerWindow {
+        id: slideManagerWindow
+        backend: root.backend
+        ownerX: root.x
+        ownerY: root.y
+    }
+
+    TimerWindow {
+        id: timerWindow
+    }
+
+    PreviewSelectWindow {
+        id: previewSelectWindow
+        backend: root.backend
+        ownerX: root.x
+        ownerY: root.y
+    }
+
+    RemoteWindow {
+        id: remoteWindow
+        backend: root.backend
+        ownerX: root.x
+        ownerY: root.y
+    }
+
+    StageWindow {
+        backend: root.backend
+        ownerX: root.x
+        ownerY: root.y
+    }
+}

@@ -2,6 +2,7 @@
 build/
 build-cmake/
 out/
+deploy/
 
 # Qt Creator / IDE
 .qtcreator/

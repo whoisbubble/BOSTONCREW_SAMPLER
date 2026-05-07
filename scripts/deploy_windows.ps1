@@ -2,7 +2,13 @@ param(
     [string]$BuildDir = "build-cmake",
     [string]$OutputDir = "deploy\windows",
     [string]$Configuration = "Release",
-    [string]$QtBinDir = ""
+    [string]$QtBinDir = "",
+    [string]$FfmpegDir = "",
+    [string]$FfmpegUrl = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip",
+    [string]$CacheDir = "deploy\.cache",
+    [string]$ArchivePath = "deploy\BOSTONCREW-SAMPLER-windows.zip",
+    [switch]$SkipFfmpeg,
+    [switch]$NoArchive
 )
 
 $ErrorActionPreference = "Stop"
@@ -17,6 +23,16 @@ $DeployPath = if ([System.IO.Path]::IsPathRooted($OutputDir)) {
     [System.IO.Path]::GetFullPath($OutputDir)
 } else {
     [System.IO.Path]::GetFullPath((Join-Path $ProjectRoot $OutputDir))
+}
+$CachePath = if ([System.IO.Path]::IsPathRooted($CacheDir)) {
+    [System.IO.Path]::GetFullPath($CacheDir)
+} else {
+    [System.IO.Path]::GetFullPath((Join-Path $ProjectRoot $CacheDir))
+}
+$ArchiveFullPath = if ([System.IO.Path]::IsPathRooted($ArchivePath)) {
+    [System.IO.Path]::GetFullPath($ArchivePath)
+} else {
+    [System.IO.Path]::GetFullPath((Join-Path $ProjectRoot $ArchivePath))
 }
 
 function Test-IsUnderPath([string]$Child, [string]$Parent) {
@@ -141,8 +157,98 @@ function Find-Windeployqt([string]$RequestedQtBinDir, [string]$CurrentBuildPath)
     throw "windeployqt.exe was not found. Add Qt bin to PATH or pass -QtBinDir C:\Qt\6.x.x\mingw_64\bin."
 }
 
+function Find-ToolInDir([string]$Root, [string]$FileName) {
+    if ($Root -eq "" -or -not (Test-Path $Root)) {
+        return $null
+    }
+    $direct = Join-Path $Root $FileName
+    if (Test-Path $direct) {
+        return [System.IO.Path]::GetFullPath($direct)
+    }
+    $found = Get-ChildItem -LiteralPath $Root -Filter $FileName -Recurse -File -ErrorAction SilentlyContinue |
+        Sort-Object FullName |
+        Select-Object -First 1
+    if ($found) {
+        return $found.FullName
+    }
+    return $null
+}
+
+function Resolve-FfmpegTools([string]$RequestedFfmpegDir, [string]$DownloadUrl, [string]$CurrentCachePath) {
+    $candidateRoots = @()
+    if ($RequestedFfmpegDir -ne "") {
+        $candidateRoots += [System.IO.Path]::GetFullPath($RequestedFfmpegDir)
+    }
+    $candidateRoots += (Join-Path $ProjectRoot "ffmpeg")
+    $candidateRoots += (Join-Path $CurrentCachePath "ffmpeg")
+
+    foreach ($root in $candidateRoots) {
+        $ffmpeg = Find-ToolInDir $root "ffmpeg.exe"
+        $ffprobe = Find-ToolInDir $root "ffprobe.exe"
+        if ($ffmpeg -and $ffprobe) {
+            return @{
+                Ffmpeg = $ffmpeg
+                Ffprobe = $ffprobe
+            }
+        }
+    }
+
+    if ($RequestedFfmpegDir -ne "") {
+        throw "ffmpeg.exe and ffprobe.exe were not found in FfmpegDir: $RequestedFfmpegDir"
+    }
+
+    New-Item -ItemType Directory -Force -Path $CurrentCachePath | Out-Null
+    $zipPath = Join-Path $CurrentCachePath "ffmpeg-release-essentials.zip"
+    $extractPath = Join-Path $CurrentCachePath "ffmpeg"
+
+    if (-not (Test-Path $zipPath)) {
+        Write-Host "Downloading FFmpeg..."
+        Write-Host $DownloadUrl
+        Invoke-WebRequest -Uri $DownloadUrl -OutFile $zipPath
+    }
+
+    if (Test-Path $extractPath) {
+        Remove-Item -LiteralPath $extractPath -Recurse -Force
+    }
+    New-Item -ItemType Directory -Force -Path $extractPath | Out-Null
+    Expand-Archive -LiteralPath $zipPath -DestinationPath $extractPath -Force
+
+    $ffmpegDownloaded = Find-ToolInDir $extractPath "ffmpeg.exe"
+    $ffprobeDownloaded = Find-ToolInDir $extractPath "ffprobe.exe"
+    if (-not $ffmpegDownloaded -or -not $ffprobeDownloaded) {
+        throw "Downloaded FFmpeg archive does not contain ffmpeg.exe and ffprobe.exe."
+    }
+
+    return @{
+        Ffmpeg = $ffmpegDownloaded
+        Ffprobe = $ffprobeDownloaded
+    }
+}
+
+function Copy-FfmpegToDeploy([hashtable]$Tools, [string]$CurrentDeployPath) {
+    $targetDir = Join-Path $CurrentDeployPath "ffmpeg"
+    New-Item -ItemType Directory -Force -Path $targetDir | Out-Null
+    Copy-Item -LiteralPath $Tools.Ffmpeg -Destination (Join-Path $targetDir "ffmpeg.exe") -Force
+    Copy-Item -LiteralPath $Tools.Ffprobe -Destination (Join-Path $targetDir "ffprobe.exe") -Force
+}
+
+function Remove-LocalLicenseState([string]$CurrentDeployPath) {
+    $saveData = Join-Path $CurrentDeployPath "SaveData"
+    if (-not (Test-Path $saveData)) {
+        return
+    }
+    Get-ChildItem -LiteralPath $saveData -Filter "license.json*" -File -ErrorAction SilentlyContinue |
+        Remove-Item -Force
+}
+
 if (-not (Test-IsUnderPath $DeployPath $ProjectRoot)) {
     throw "OutputDir must be inside the project folder for this deploy script: $DeployPath"
+}
+if (-not (Test-IsUnderPath $CachePath $ProjectRoot)) {
+    throw "CacheDir must be inside the project folder for this deploy script: $CachePath"
+}
+if (-not $NoArchive -and -not (Test-IsUnderPath $ArchiveFullPath $ProjectRoot)) {
+    throw "ArchivePath must be inside the project folder for this deploy script: $ArchiveFullPath"
 }
 
 Add-DefaultQtToolPaths $QtBinDir
@@ -172,10 +278,14 @@ Copy-Item -LiteralPath $exe.FullName -Destination $targetExe -Force
 
 foreach ($dataDir in "Samples", "Content", "SaveData") {
     $source = Join-Path $exe.Directory.FullName $dataDir
+    $destination = Join-Path $DeployPath $dataDir
     if (Test-Path $source) {
-        Copy-Item -LiteralPath $source -Destination (Join-Path $DeployPath $dataDir) -Recurse -Force
+        Copy-Item -LiteralPath $source -Destination $destination -Recurse -Force
+    } else {
+        New-Item -ItemType Directory -Force -Path $destination | Out-Null
     }
 }
+Remove-LocalLicenseState $DeployPath
 
 $windeployqt = Find-Windeployqt $QtBinDir $BuildPath
 Add-ToPath ([System.IO.Path]::GetDirectoryName($windeployqt))
@@ -186,6 +296,27 @@ if ($Configuration -match "Debug") {
 
 & $windeployqt $deployMode --qmldir $ProjectRoot --multimedia --compiler-runtime $targetExe
 
+if (-not $SkipFfmpeg) {
+    $ffmpegTools = Resolve-FfmpegTools $FfmpegDir $FfmpegUrl $CachePath
+    Copy-FfmpegToDeploy $ffmpegTools $DeployPath
+}
+
+if (-not $NoArchive) {
+    New-Item -ItemType Directory -Force -Path ([System.IO.Path]::GetDirectoryName($ArchiveFullPath)) | Out-Null
+    if (Test-Path $ArchiveFullPath) {
+        Remove-Item -LiteralPath $ArchiveFullPath -Force
+    }
+    Compress-Archive -Path (Join-Path $DeployPath "*") -DestinationPath $ArchiveFullPath -Force
+}
+
 Write-Host ""
 Write-Host "Deployment is ready:"
 Write-Host $DeployPath
+if (-not $SkipFfmpeg) {
+    Write-Host "FFmpeg bundled:"
+    Write-Host (Join-Path $DeployPath "ffmpeg")
+}
+if (-not $NoArchive) {
+    Write-Host "Archive is ready:"
+    Write-Host $ArchiveFullPath
+}

@@ -63,8 +63,15 @@ ApplicationWindow {
                 height: 42
                 backend: root.backend
                 maximized: root.maximized
-                onHostRequested: hostPopup.open()
-                onRemoteRequested: remoteWindow.openRemote()
+                licensed: root.backend.licenseAllowed
+                onHostRequested: {
+                    if (root.backend.licenseAllowed)
+                        hostPopup.open()
+                }
+                onRemoteRequested: {
+                    if (root.backend.licenseAllowed)
+                        remoteWindow.openRemote()
+                }
                 onMinimizeRequested: root.showMinimized()
                 onMaximizeRequested: root.maximized ? root.showNormal() : root.showMaximized()
                 onCloseRequested: {
@@ -79,19 +86,41 @@ ApplicationWindow {
                 anchors.top: titleBar.bottom
                 anchors.bottom: parent.bottom
                 backend: root.backend
+                enabled: root.backend.licenseAllowed
+                opacity: root.backend.licenseAllowed ? 1.0 : 0.25
                 timerRunning: timerWindow.running
                 onAssignQuickSlotRequested: function(index) {
-                    assignPopup.openFor(index)
+                    if (root.backend.licenseAllowed)
+                        assignPopup.openFor(index)
                 }
                 onEditSampleRequested: function(index, sampleName, volume, stopSounds, sampleColor) {
-                    sampleDialog.openEditor(index, sampleName, volume, stopSounds, sampleColor)
+                    if (root.backend.licenseAllowed)
+                        sampleDialog.openEditor(index, sampleName, volume, stopSounds, sampleColor)
                 }
                 onEditSlideRequested: function(index, folderName, slideType) {
-                    slideDialog.openEditor(index, folderName, slideType)
+                    if (root.backend.licenseAllowed)
+                        slideDialog.openEditor(index, folderName, slideType)
                 }
-                onTimerRequested: timerWindow.openTimer()
-                onManagerRequested: slideManagerWindow.openManager()
-                onPreviewRequested: previewSelectWindow.openPreview()
+                onTimerRequested: {
+                    if (root.backend.licenseAllowed)
+                        timerWindow.openTimer()
+                }
+                onManagerRequested: {
+                    if (root.backend.licenseAllowed)
+                        slideManagerWindow.openManager()
+                }
+                onPreviewRequested: {
+                    if (root.backend.licenseAllowed)
+                        previewSelectWindow.openPreview()
+                }
+            }
+
+            LicenseGate {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: titleBar.bottom
+                anchors.bottom: parent.bottom
+                backend: root.backend
             }
         }
     }
@@ -221,5 +250,22 @@ ApplicationWindow {
         backend: root.backend
         ownerX: root.x
         ownerY: root.y
+    }
+
+    Connections {
+        target: root.backend
+
+        function onLicenseStateChanged() {
+            if (root.backend.licenseAllowed)
+                return
+            assignPopup.close()
+            sampleDialog.close()
+            slideDialog.close()
+            hostPopup.close()
+            slideManagerWindow.hide()
+            timerWindow.hide()
+            previewSelectWindow.hide()
+            remoteWindow.hide()
+        }
     }
 }

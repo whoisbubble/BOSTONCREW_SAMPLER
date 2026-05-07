@@ -11,6 +11,7 @@ Item {
 
     implicitWidth: 86
     implicitHeight: 34
+    opacity: enabled ? 1.0 : 0.45
 
     Rectangle {
         anchors.fill: parent
@@ -43,6 +44,7 @@ Item {
     MouseArea {
         id: mouseArea
         anchors.fill: parent
+        enabled: control.enabled
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton
         cursorShape: Qt.PointingHandCursor

@@ -5,7 +5,7 @@ project(CPlusEventSampler VERSION 0.1 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC_COMPILER_PREDEFINES OFF)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 Multimedia Network Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 Multimedia Network Widgets Test)
 
 qt_standard_project_setup(REQUIRES 6.10)
 
@@ -16,6 +16,8 @@ endif()
 
 qt_add_executable(appCPlusEventSampler
     main.cpp
+    LicenseManager.h
+    LicenseManager.cpp
     SamplerBackend.h
     SamplerBackend.cpp
     ${APP_ICON_RESOURCE_WINDOWS}
@@ -41,6 +43,7 @@ qt_add_qml_module(appCPlusEventSampler
         EditWorkspace.qml
         HostPopup.qml
         IconButton.qml
+        LicenseGate.qml
         Main.qml
         PreviewWorkspace.qml
         PreviewSelectWindow.qml
@@ -105,3 +108,21 @@ install(TARGETS appCPlusEventSampler
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+enable_testing()
+
+qt_add_executable(license_manager_tests
+    tests/LicenseManagerTests.cpp
+    LicenseManager.h
+    LicenseManager.cpp
+)
+
+target_link_libraries(license_manager_tests
+    PRIVATE Qt6::Core Qt6::Network Qt6::Test
+)
+
+set_target_properties(license_manager_tests PROPERTIES
+    WIN32_EXECUTABLE FALSE
+)
+
+add_test(NAME license_manager_tests COMMAND license_manager_tests)

@@ -487,6 +487,7 @@ QString PreviewListModel::absolutePathAt(int row) const
 
 SamplerBackend::SamplerBackend(QObject *parent)
     : QObject(parent)
+    , m_licenseManager(this)
 {
     updateScreenGeometry();
     connect(qGuiApp, &QGuiApplication::screenAdded, this, &SamplerBackend::updateScreenGeometry);
@@ -507,8 +508,19 @@ SamplerBackend::SamplerBackend(QObject *parent)
         setStatus("Host connection error: " + m_socket.errorString());
         emit connectionChanged();
     });
+    connect(&m_licenseManager, &LicenseManager::stateChanged, this, [this]() {
+        if (!m_licenseManager.allowed()) {
+            stopAllSamples();
+            closeStage();
+            disconnectHost();
+            setSettingsMode(false);
+        }
+        emit licenseStateChanged();
+    });
 
     loadAll();
+    m_licenseManager.setStorageDir(saveDir());
+    m_licenseManager.initialize();
 }
 
 SamplerBackend::~SamplerBackend()
@@ -561,6 +573,11 @@ int SamplerBackend::currentMediaIndex() const { return m_currentMediaIndex; }
 bool SamplerBackend::connected() const { return m_socket.state() == QAbstractSocket::ConnectedState && m_webSocketReady; }
 QString SamplerBackend::statusMessage() const { return m_statusMessage; }
 QString SamplerBackend::savedHost() const { return m_savedHost; }
+bool SamplerBackend::licenseAllowed() const { return m_licenseManager.allowed(); }
+bool SamplerBackend::licenseBusy() const { return m_licenseManager.busy(); }
+QString SamplerBackend::licenseMessage() const { return m_licenseManager.message(); }
+QString SamplerBackend::licenseErrorMessage() const { return m_licenseManager.errorMessage(); }
+QString SamplerBackend::licenseApiUrl() const { return m_licenseManager.apiUrl(); }
 void SamplerBackend::setSavedHost(const QString &host)
 {
     if (m_savedHost == host)
@@ -1070,6 +1087,21 @@ void SamplerBackend::saveAll()
     saveSamples();
     saveSlides();
     saveQuickSlides();
+}
+
+void SamplerBackend::activateLicense(const QString &licenseKey)
+{
+    m_licenseManager.activate(licenseKey);
+}
+
+void SamplerBackend::retryLicenseCheck()
+{
+    m_licenseManager.checkNow();
+}
+
+void SamplerBackend::openPurchasePage()
+{
+    QDesktopServices::openUrl(QUrl("https://bostoncrew.ru"));
 }
 
 void SamplerBackend::connectHost(const QString &host)

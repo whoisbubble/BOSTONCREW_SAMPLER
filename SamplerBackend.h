@@ -14,6 +14,8 @@
 #include <QTimer>
 #include <QUrl>
 
+#include "LicenseManager.h"
+
 struct SampleData
 {
     QString name;
@@ -186,6 +188,11 @@ class SamplerBackend final : public QObject
     Q_PROPERTY(bool connected READ connected NOTIFY connectionChanged)
     Q_PROPERTY(QString statusMessage READ statusMessage NOTIFY statusMessageChanged)
     Q_PROPERTY(QString savedHost READ savedHost WRITE setSavedHost NOTIFY savedHostChanged)
+    Q_PROPERTY(bool licenseAllowed READ licenseAllowed NOTIFY licenseStateChanged)
+    Q_PROPERTY(bool licenseBusy READ licenseBusy NOTIFY licenseStateChanged)
+    Q_PROPERTY(QString licenseMessage READ licenseMessage NOTIFY licenseStateChanged)
+    Q_PROPERTY(QString licenseErrorMessage READ licenseErrorMessage NOTIFY licenseStateChanged)
+    Q_PROPERTY(QString licenseApiUrl READ licenseApiUrl CONSTANT)
     Q_PROPERTY(int stageX READ stageX NOTIFY screenGeometryChanged)
     Q_PROPERTY(int stageY READ stageY NOTIFY screenGeometryChanged)
     Q_PROPERTY(int stageWidth READ stageWidth NOTIFY screenGeometryChanged)
@@ -218,6 +225,11 @@ public:
     QString statusMessage() const;
     QString savedHost() const;
     void setSavedHost(const QString &host);
+    bool licenseAllowed() const;
+    bool licenseBusy() const;
+    QString licenseMessage() const;
+    QString licenseErrorMessage() const;
+    QString licenseApiUrl() const;
     int stageX() const;
     int stageY() const;
     int stageWidth() const;
@@ -258,6 +270,9 @@ public:
     Q_INVOKABLE void openLibraryFolder(int index);
     Q_INVOKABLE void openDataFolder();
     Q_INVOKABLE void saveAll();
+    Q_INVOKABLE void activateLicense(const QString &licenseKey);
+    Q_INVOKABLE void retryLicenseCheck();
+    Q_INVOKABLE void openPurchasePage();
 
     Q_INVOKABLE void connectHost(const QString &host);
     Q_INVOKABLE void disconnectHost();
@@ -277,6 +292,7 @@ signals:
     void connectionChanged();
     void statusMessageChanged();
     void savedHostChanged();
+    void licenseStateChanged();
     void screenGeometryChanged();
     void stageVideoPauseRequested();
     void stageVideoRestartRequested();
@@ -356,6 +372,7 @@ private:
     PreviewListModel m_previewItems;
     QList<ActivePlayback> m_activePlaybacks;
     QTcpSocket m_socket;
+    LicenseManager m_licenseManager;
     QByteArray m_socketBuffer;
     QByteArray m_webSocketKey;
     bool m_webSocketReady = false;

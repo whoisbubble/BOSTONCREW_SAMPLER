@@ -7,6 +7,7 @@ Item {
 
     required property var backend
     property bool maximized: false
+    property bool licensed: true
 
     signal hostRequested()
     signal remoteRequested()
@@ -44,6 +45,7 @@ Item {
             iconSize: 16
             iconSource: "qrc:/assets/icons/host.svg"
             showChrome: false
+            enabled: bar.licensed
             onClicked: bar.hostRequested()
         }
 
@@ -54,6 +56,7 @@ Item {
             iconSize: 16
             iconSource: "qrc:/assets/icons/remote.svg"
             showChrome: false
+            enabled: bar.licensed
             onClicked: bar.remoteRequested()
         }
 

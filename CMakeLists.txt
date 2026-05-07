@@ -41,6 +41,7 @@ qt_add_qml_module(appCPlusEventSampler
         ChromeButton.qml
         DashboardView.qml
         EditWorkspace.qml
+        HostInfoWindow.qml
         HostPopup.qml
         IconButton.qml
         LicenseGate.qml

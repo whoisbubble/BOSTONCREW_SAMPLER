@@ -7,10 +7,12 @@ Popup {
 
     required property var backend
 
+    signal infoRequested()
+
     modal: true
     focus: true
     width: Math.min(380, parent ? parent.width - 40 : 380)
-    height: 216
+    height: 236
     anchors.centerIn: parent
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
@@ -59,6 +61,11 @@ Popup {
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
+
+            TextButton {
+                text: "Info"
+                onClicked: popup.infoRequested()
+            }
 
             Item { Layout.fillWidth: true }
 

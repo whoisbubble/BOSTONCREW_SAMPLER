@@ -25,6 +25,7 @@
 
 namespace {
 constexpr int QuickSlideCount = 11;
+constexpr int HostConnectTimeoutMs = 7000;
 
 QString normalizedRelative(QString value)
 {
@@ -493,19 +494,36 @@ SamplerBackend::SamplerBackend(QObject *parent)
     connect(qGuiApp, &QGuiApplication::screenAdded, this, &SamplerBackend::updateScreenGeometry);
     connect(qGuiApp, &QGuiApplication::screenRemoved, this, &SamplerBackend::updateScreenGeometry);
 
-    connect(&m_socket, &QTcpSocket::connected, this, [this]() {
-        sendWebSocketHandshake(QUrl("ws://" + m_savedHost));
-    });
-    connect(&m_socket, &QTcpSocket::disconnected, this, [this]() {
+    m_hostConnectionTimer.setSingleShot(true);
+    m_hostConnectionTimer.setInterval(HostConnectTimeoutMs);
+    connect(&m_hostConnectionTimer, &QTimer::timeout, this, [this]() {
+        if (m_webSocketReady || m_socket.state() == QAbstractSocket::UnconnectedState)
+            return;
+        m_hostCloseStatusOverride = QString("Host timeout after %1s. Check IP, port, and WebSocket server.").arg(HostConnectTimeoutMs / 1000);
         m_webSocketReady = false;
         m_socketBuffer.clear();
-        setStatus("Host disconnected.");
+        m_socket.abort();
+        setStatus(m_hostCloseStatusOverride);
+        emit connectionChanged();
+    });
+
+    connect(&m_socket, &QTcpSocket::connected, this, [this]() {
+        setStatus("Host TCP connected. Sending WebSocket upgrade...");
+        sendWebSocketHandshake(QUrl(m_savedHost.contains("://") ? m_savedHost : "ws://" + m_savedHost));
+    });
+    connect(&m_socket, &QTcpSocket::disconnected, this, [this]() {
+        m_hostConnectionTimer.stop();
+        m_webSocketReady = false;
+        m_socketBuffer.clear();
+        setStatus(m_hostCloseStatusOverride.isEmpty() ? "Host disconnected." : m_hostCloseStatusOverride);
+        m_hostCloseStatusOverride.clear();
         emit connectionChanged();
     });
     connect(&m_socket, &QTcpSocket::readyRead, this, &SamplerBackend::handleSocketReadyRead);
     connect(&m_socket, &QTcpSocket::errorOccurred, this, [this](QAbstractSocket::SocketError) {
+        m_hostConnectionTimer.stop();
         m_webSocketReady = false;
-        setStatus("Host connection error: " + m_socket.errorString());
+        setStatus(m_hostCloseStatusOverride.isEmpty() ? "Host connection error: " + m_socket.errorString() : m_hostCloseStatusOverride);
         emit connectionChanged();
     });
     connect(&m_licenseManager, &LicenseManager::stateChanged, this, [this]() {
@@ -1113,27 +1131,50 @@ void SamplerBackend::connectHost(const QString &host)
     }
     m_savedHost = trimmed;
     emit savedHostChanged();
-    QUrl url("ws://" + trimmed);
+    QUrl url(trimmed.contains("://") ? trimmed : "ws://" + trimmed);
     if (url.host().isEmpty()) {
         setStatus("Invalid host address.");
         return;
     }
+    if (url.scheme() != "ws" && url.scheme() != "wss") {
+        setStatus("Host must use ws:// or wss://.");
+        return;
+    }
+    if (url.path().isEmpty())
+        url.setPath("/");
+    const int port = url.port(80);
+    m_hostCloseStatusOverride.clear();
     m_webSocketReady = false;
     m_socketBuffer.clear();
-    m_socket.close();
-    m_socket.connectToHost(url.host(), url.port(80));
-    setStatus("Connecting to host...");
+    m_socket.abort();
+    m_socket.connectToHost(url.host(), port);
+    m_hostConnectionTimer.start(HostConnectTimeoutMs);
+    setStatus(QString("Connecting to host %1:%2...").arg(url.host()).arg(port));
 }
 
 void SamplerBackend::disconnectHost()
 {
+    m_hostConnectionTimer.stop();
+    m_hostCloseStatusOverride = "Host disconnected.";
+    if (m_socket.state() == QAbstractSocket::UnconnectedState) {
+        m_webSocketReady = false;
+        m_socketBuffer.clear();
+        setStatus(m_hostCloseStatusOverride);
+        m_hostCloseStatusOverride.clear();
+        emit connectionChanged();
+        return;
+    }
     m_socket.close();
 }
 
 void SamplerBackend::sendHostMessage(const QString &message)
 {
-    if (connected())
+    if (!connected()) {
+        setStatus("Host is not connected. Message not sent: " + message);
+        return;
+    }
     sendWebSocketText(message);
+    setStatus("Sent to host: " + message);
 }
 
 void SamplerBackend::toggleStageVideoPause()
@@ -1947,6 +1988,10 @@ void SamplerBackend::sendWebSocketHandshake(const QUrl &url)
     request += "\r\n";
     request += "Upgrade: websocket\r\n";
     request += "Connection: Upgrade\r\n";
+    request += "Cache-Control: no-cache\r\n";
+    request += "Pragma: no-cache\r\n";
+    request += "Origin: http://" + url.host().toUtf8() + "\r\n";
+    request += "User-Agent: BOSTONCREW SAMPLER\r\n";
     request += "Sec-WebSocket-Key: " + m_webSocketKey + "\r\n";
     request += "Sec-WebSocket-Version: 13\r\n\r\n";
     m_socket.write(request);
@@ -1964,14 +2009,18 @@ void SamplerBackend::handleSocketReadyRead()
         const QByteArray header = m_socketBuffer.left(headerEnd);
         m_socketBuffer.remove(0, headerEnd + 4);
         if (!header.startsWith("HTTP/1.1 101") && !header.startsWith("HTTP/1.0 101")) {
-            setStatus("Host rejected WebSocket upgrade.");
+            m_hostConnectionTimer.stop();
+            m_hostCloseStatusOverride = "Host rejected WebSocket upgrade. Server must return HTTP 101.";
+            setStatus(m_hostCloseStatusOverride);
             m_socket.disconnectFromHost();
             return;
         }
 
+        m_hostConnectionTimer.stop();
+        m_hostCloseStatusOverride.clear();
         m_webSocketReady = true;
         saveHost(m_savedHost);
-        setStatus("Host connected.");
+        setStatus("Host connected. Sent HOST / HSFALSE.");
         emit connectionChanged();
         sendWebSocketText("HOST");
         sendWebSocketText("HSFALSE");
@@ -1987,8 +2036,12 @@ void SamplerBackend::handleSocketReadyRead()
 
 void SamplerBackend::handleWebSocketPayload(const QString &message)
 {
-    if (message == QString::fromUtf8("Игрок 1") || message == QString::fromUtf8("Игрок 2"))
+    if (message == QString::fromUtf8("Игрок 1") || message == QString::fromUtf8("Игрок 2")) {
+        setStatus("Received from host: " + message + ". Playing P1.");
         playFixedSample(0, false);
+        return;
+    }
+    setStatus("Received from host: " + message);
 }
 
 void SamplerBackend::sendWebSocketText(const QString &message)

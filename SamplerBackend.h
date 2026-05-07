@@ -373,8 +373,10 @@ private:
     QList<ActivePlayback> m_activePlaybacks;
     QTcpSocket m_socket;
     LicenseManager m_licenseManager;
+    QTimer m_hostConnectionTimer;
     QByteArray m_socketBuffer;
     QByteArray m_webSocketKey;
+    QString m_hostCloseStatusOverride;
     bool m_webSocketReady = false;
 
     bool m_settingsMode = false;

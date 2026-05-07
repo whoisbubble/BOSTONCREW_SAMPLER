@@ -117,9 +117,12 @@ ApplicationWindow {
 
             LicenseGate {
                 anchors.left: parent.left
+                anchors.leftMargin: 1
                 anchors.right: parent.right
+                anchors.rightMargin: 1
                 anchors.top: titleBar.bottom
                 anchors.bottom: parent.bottom
+                anchors.bottomMargin: 1
                 backend: root.backend
             }
         }
@@ -219,6 +222,11 @@ ApplicationWindow {
         id: hostPopup
         parent: Overlay.overlay
         backend: root.backend
+        onInfoRequested: hostInfoWindow.openInfo(root.x, root.y)
+    }
+
+    HostInfoWindow {
+        id: hostInfoWindow
     }
 
     SlideManagerWindow {
@@ -262,6 +270,7 @@ ApplicationWindow {
             sampleDialog.close()
             slideDialog.close()
             hostPopup.close()
+            hostInfoWindow.hide()
             slideManagerWindow.hide()
             timerWindow.hide()
             previewSelectWindow.hide()

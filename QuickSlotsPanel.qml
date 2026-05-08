@@ -22,7 +22,7 @@ AppPanel {
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.margins: 0
-        height: Math.max(82, parent.height - 54)
+        height: Math.max(132, parent.height - 54)
         radius: 10
         color: AppTheme.inputBackground
         border.color: AppTheme.border
@@ -32,7 +32,7 @@ AppPanel {
         GridLayout {
             anchors.centerIn: parent
             width: 184
-            height: 88
+            height: 132
             columns: 4
             rowSpacing: 4
             columnSpacing: 4
@@ -51,7 +51,7 @@ AppPanel {
                     readonly property bool active: panel.backend.stageActive
                         && panel.backend.currentSlideIndex === quickTile.index
 
-                    visible: quickTile.index < 8
+                    visible: quickTile.index < 12
                     Layout.preferredWidth: 40
                     Layout.preferredHeight: 40
                     radius: 7

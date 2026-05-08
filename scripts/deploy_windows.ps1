@@ -7,6 +7,7 @@ param(
     [string]$FfmpegUrl = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip",
     [string]$CacheDir = "deploy\.cache",
     [string]$ArchivePath = "deploy\BOSTONCREW-SAMPLER-windows.zip",
+    [string]$AppExeName = "BOSTONCREW SAMPLER.exe",
     [switch]$SkipFfmpeg,
     [switch]$NoArchive
 )
@@ -273,7 +274,7 @@ if (Test-Path $DeployPath) {
 }
 New-Item -ItemType Directory -Force -Path $DeployPath | Out-Null
 
-$targetExe = Join-Path $DeployPath $exeName
+$targetExe = Join-Path $DeployPath $AppExeName
 Copy-Item -LiteralPath $exe.FullName -Destination $targetExe -Force
 
 foreach ($dataDir in "Samples", "Content", "SaveData") {

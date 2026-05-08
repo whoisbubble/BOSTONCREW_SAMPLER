@@ -24,7 +24,7 @@
 #include <QStandardPaths>
 
 namespace {
-constexpr int QuickSlideCount = 11;
+constexpr int QuickSlideCount = 12;
 constexpr int HostConnectTimeoutMs = 7000;
 
 QString normalizedRelative(QString value)

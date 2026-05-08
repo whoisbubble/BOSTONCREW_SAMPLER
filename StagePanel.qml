@@ -40,8 +40,8 @@ AppPanel {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
         anchors.topMargin: 14
-        width: Math.min(150, parent.width - 28)
-        height: Math.min(90, Math.max(58, parent.height - 70))
+        width: Math.min(196, parent.width - 28)
+        height: Math.min(116, Math.max(72, parent.height - 70))
         radius: 11
         color: AppTheme.inputBackground
         border.color: AppTheme.inputBorder

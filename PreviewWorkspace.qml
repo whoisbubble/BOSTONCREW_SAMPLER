@@ -9,8 +9,8 @@ Item {
     required property var backend
 
     readonly property int gridGap: 10
-    readonly property int columnCount: Math.max(3, Math.floor((width - 28 + gridGap) / 118))
-    readonly property int tileWidth: Math.max(92, Math.min(116, Math.floor((width - 28 - ((columnCount - 1) * gridGap)) / columnCount)))
+    readonly property int columnCount: Math.max(3, Math.floor((width - 28 + gridGap) / 148))
+    readonly property int tileWidth: Math.max(116, Math.min(146, Math.floor((width - 28 - ((columnCount - 1) * gridGap)) / columnCount)))
     readonly property int previewHeight: Math.round(tileWidth * 9 / 16)
     readonly property int tileHeight: previewHeight + 28
 

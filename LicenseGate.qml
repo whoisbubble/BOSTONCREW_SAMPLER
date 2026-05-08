@@ -18,9 +18,25 @@ Item {
         backend.activateLicense(keyInput.text)
     }
 
-    Rectangle {
+    Item {
         anchors.fill: parent
-        color: AppTheme.background
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            height: Math.max(0, parent.height - AppTheme.shellRadius)
+            color: AppTheme.background
+        }
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: AppTheme.shellRadius * 2
+            radius: AppTheme.shellRadius
+            color: AppTheme.background
+        }
     }
 
     MouseArea {

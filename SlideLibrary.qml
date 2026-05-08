@@ -42,16 +42,6 @@ Item {
             Layout.preferredHeight: 34
             spacing: 8
 
-            Text {
-                Layout.preferredWidth: 92
-                text: "BOSTONCREW SAMPLER / Slides"
-                color: AppTheme.text
-                font.family: AppTheme.fontFamily
-                font.pixelSize: 15
-                font.weight: Font.DemiBold
-                elide: Text.ElideRight
-            }
-
             AppTextField {
                 Layout.fillWidth: true
                 placeholderText: "Search"
@@ -271,7 +261,7 @@ Item {
                                             readonly property string cueName: row.mediaSampleNames && mediaTile.index < row.mediaSampleNames.length ? row.mediaSampleNames[mediaTile.index] : ""
                                             readonly property bool repeats: !!(row.mediaRepeats && row.mediaRepeats[mediaTile.index])
 
-                                            width: 182
+                                            width: 206
                                             height: 66
                                             radius: 8
                                             color: mediaHover.hovered ? AppTheme.tileHover : AppTheme.inputBackground
@@ -389,6 +379,17 @@ Item {
                                                                 else
                                                                     library.backend.addSampleToLibrarySlideMedia(row.index, mediaTile.index)
                                                             }
+                                                        }
+
+                                                        IconButton {
+                                                            visible: mediaTile.hasCue
+                                                            width: visible ? 20 : 0
+                                                            height: 20
+                                                            side: 20
+                                                            iconSize: 11
+                                                            iconName: "close"
+                                                            dangerFill: true
+                                                            onClicked: library.backend.clearSampleFromLibrarySlideMedia(row.index, mediaTile.index)
                                                         }
 
                                                         IconButton {

@@ -6,11 +6,11 @@ Item {
     id: gate
 
     required property var backend
+    property bool expanded: false
 
     visible: !backend.licenseAllowed
     enabled: visible
     z: 1000
-    focus: visible
 
     function submit() {
         if (backend.licenseBusy || keyInput.text.trim().length === 0)
@@ -18,72 +18,80 @@ Item {
         backend.activateLicense(keyInput.text)
     }
 
-    Item {
-        anchors.fill: parent
+    TextButton {
+        id: openButton
 
-        Rectangle {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            height: Math.max(0, parent.height - AppTheme.shellRadius)
-            color: AppTheme.background
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.rightMargin: 14
+        anchors.bottomMargin: 14
+        width: 136
+        height: 34
+        text: gate.expanded ? "Hide key" : "Enter key"
+        accentFill: true
+        visible: !gate.expanded
+        onClicked: {
+            gate.expanded = true
+            keyInput.forceActiveFocus()
         }
-
-        Rectangle {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            height: AppTheme.shellRadius * 2
-            radius: AppTheme.shellRadius
-            color: AppTheme.background
-        }
-    }
-
-    MouseArea {
-        anchors.fill: parent
-        acceptedButtons: Qt.AllButtons
-        hoverEnabled: true
     }
 
     AppPanel {
         id: panel
-        anchors.centerIn: parent
-        width: Math.min(430, Math.max(300, gate.width - 42))
+
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.rightMargin: 14
+        anchors.bottomMargin: 14
+        width: Math.min(390, Math.max(310, gate.width - 28))
         height: content.implicitHeight + padding * 2
-        padding: 18
-        panelColor: AppTheme.surface
+        padding: 14
+        panelColor: AppTheme.surfaceRaised
+        visible: gate.expanded
 
         ColumnLayout {
             id: content
-            anchors.fill: parent
-            spacing: 12
 
-            Text {
+            anchors.fill: parent
+            spacing: 9
+
+            RowLayout {
                 Layout.fillWidth: true
-                text: "Активация BOSTONCREW SAMPLER"
-                color: AppTheme.text
-                font.family: AppTheme.fontFamily
-                font.pixelSize: 19
-                font.weight: Font.DemiBold
-                horizontalAlignment: Text.AlignHCenter
-                wrapMode: Text.WordWrap
+                spacing: 8
+
+                Text {
+                    Layout.fillWidth: true
+                    text: "Free mode"
+                    color: AppTheme.text
+                    font.family: AppTheme.fontFamily
+                    font.pixelSize: 15
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                }
+
+                TextButton {
+                    Layout.preferredWidth: 64
+                    Layout.preferredHeight: 28
+                    text: "Hide"
+                    onClicked: gate.expanded = false
+                }
             }
 
             Text {
                 Layout.fillWidth: true
-                text: "Введите ключ, купленный на bostoncrew.ru. Первый запуск требует интернет, затем приложение сможет открываться оффлайн на этом устройстве."
+                text: "Limits: 3 slide buttons, 5 samples, 5 slide blocks, 5 media files per slide."
                 color: AppTheme.muted
                 font.family: AppTheme.fontFamily
-                font.pixelSize: 12
-                lineHeight: 1.2
-                horizontalAlignment: Text.AlignHCenter
+                font.pixelSize: 11
+                lineHeight: 1.15
                 wrapMode: Text.WordWrap
             }
 
             AppTextField {
                 id: keyInput
+
                 Layout.fillWidth: true
-                Layout.preferredHeight: 38
+                Layout.preferredHeight: 36
                 placeholderText: "BCS-XXXX-XXXX-XXXX-XXXX"
                 enabled: !gate.backend.licenseBusy
                 horizontalAlignment: TextInput.AlignHCenter
@@ -98,35 +106,35 @@ Item {
 
             Text {
                 Layout.fillWidth: true
-                Layout.minimumHeight: 38
+                Layout.minimumHeight: 32
                 text: gate.backend.licenseErrorMessage !== ""
                     ? gate.backend.licenseErrorMessage
                     : gate.backend.licenseMessage
                 color: gate.backend.licenseErrorMessage !== "" ? AppTheme.danger : AppTheme.muted
                 font.family: AppTheme.fontFamily
-                font.pixelSize: 12
-                lineHeight: 1.18
+                font.pixelSize: 11
+                lineHeight: 1.12
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 wrapMode: Text.WordWrap
+                elide: Text.ElideRight
             }
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 10
+                spacing: 8
 
                 TextButton {
-                    Layout.preferredWidth: 130
-                    Layout.preferredHeight: 36
-                    text: "Купить ключ"
+                    Layout.preferredWidth: 96
+                    Layout.preferredHeight: 34
+                    text: "Buy key"
                     onClicked: gate.backend.openPurchasePage()
                 }
 
                 TextButton {
-                    id: activateButton
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 36
-                    text: gate.backend.licenseBusy ? "Проверяем..." : "Активировать"
+                    Layout.preferredHeight: 34
+                    text: gate.backend.licenseBusy ? "Checking..." : "Activate"
                     accentFill: true
                     enabled: !gate.backend.licenseBusy && keyInput.text.trim().length > 0
                     onClicked: gate.submit()
@@ -137,19 +145,14 @@ Item {
 
     BusyIndicator {
         anchors.horizontalCenter: panel.horizontalCenter
-        anchors.top: panel.bottom
-        anchors.topMargin: 14
+        anchors.bottom: panel.top
+        anchors.bottomMargin: 10
         running: gate.backend.licenseBusy
         visible: running
     }
 
-    Component.onCompleted: {
-        if (visible)
-            keyInput.forceActiveFocus()
-    }
-
-    onVisibleChanged: {
-        if (visible)
+    onExpandedChanged: {
+        if (expanded)
             keyInput.forceActiveFocus()
     }
 }

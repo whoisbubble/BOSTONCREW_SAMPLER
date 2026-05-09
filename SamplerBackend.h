@@ -177,6 +177,11 @@ class SamplerBackend final : public QObject
     Q_PROPERTY(bool settingsMode READ settingsMode WRITE setSettingsMode NOTIFY settingsModeChanged)
     Q_PROPERTY(bool audioPaused READ audioPaused NOTIFY audioPausedChanged)
     Q_PROPERTY(bool stageActive READ stageActive NOTIFY stageChanged)
+    Q_PROPERTY(bool freeMode READ freeMode NOTIFY licenseStateChanged)
+    Q_PROPERTY(int freeQuickSlideLimit READ freeQuickSlideLimit CONSTANT)
+    Q_PROPERTY(int freeSampleLimit READ freeSampleLimit CONSTANT)
+    Q_PROPERTY(int freeLibrarySlideLimit READ freeLibrarySlideLimit CONSTANT)
+    Q_PROPERTY(int freeSlideMediaLimit READ freeSlideMediaLimit CONSTANT)
     Q_PROPERTY(QString currentMediaUrl READ currentMediaUrl NOTIFY stageChanged)
     Q_PROPERTY(QString currentMediaPath READ currentMediaPath NOTIFY stageChanged)
     Q_PROPERTY(bool currentMediaIsVideo READ currentMediaIsVideo NOTIFY stageChanged)
@@ -213,6 +218,11 @@ public:
     void setSettingsMode(bool enabled);
     bool audioPaused() const;
     bool stageActive() const;
+    bool freeMode() const;
+    int freeQuickSlideLimit() const;
+    int freeSampleLimit() const;
+    int freeLibrarySlideLimit() const;
+    int freeSlideMediaLimit() const;
     QString currentMediaUrl() const;
     QString currentMediaPath() const;
     bool currentMediaIsVideo() const;
@@ -284,6 +294,13 @@ public:
     Q_INVOKABLE QString urlForPath(const QString &storedPath) const;
     Q_INVOKABLE bool isVideoPath(const QString &path) const;
     Q_INVOKABLE bool hasSecondScreen() const;
+    Q_INVOKABLE bool quickSlideAvailable(int index) const;
+    Q_INVOKABLE bool sampleAvailable(int index) const;
+    Q_INVOKABLE bool librarySlideAvailable(int index) const;
+    Q_INVOKABLE bool slideMediaAvailable(int slideIndex, int mediaIndex) const;
+    Q_INVOKABLE bool canAddSample() const;
+    Q_INVOKABLE bool canCreateLibrarySlide() const;
+    Q_INVOKABLE bool canAddMediaToLibrarySlide(int index) const;
 
 signals:
     void settingsModeChanged();
@@ -342,6 +359,11 @@ private:
     SlideData createDefaultSlide() const;
     SlideData copySlide(const SlideData &slide) const;
     void ensureMediaCueCount(SlideData &slide) const;
+    int playableMediaCount(const SlideData &slide) const;
+    bool ensureQuickSlideAvailable(int index);
+    bool ensureSampleAvailable(int index);
+    bool ensureLibrarySlideAvailable(int index);
+    bool ensureSlideMediaAvailable(int slideIndex, int mediaIndex);
 
     bool startPlayback(SampleListModel *model, int row, bool showErrors, QObject *ownedObject = nullptr);
     void playMediaCue(const SlideData &slide, int mediaIndex);

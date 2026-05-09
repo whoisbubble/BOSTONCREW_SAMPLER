@@ -72,9 +72,11 @@ Item {
                         required property color foreColor
                         required property real sampleVolume
                         required property bool sampleStopSounds
+                        readonly property bool available: manager.backend.sampleAvailable(card.index)
 
                         width: Math.max(190, (sampleFlow.width - sampleFlow.spacing * (manager.columns - 1)) / manager.columns)
                         height: 112
+                        opacity: card.available ? 1.0 : 0.4
                         radius: AppTheme.tileRadius
                         color: cardHover.containsMouse ? AppTheme.tileHover : AppTheme.tile
                         border.width: 1
@@ -155,9 +157,16 @@ Item {
                                     iconSize: 15
                                     iconName: card.isPlaying ? "stop" : "play"
                                     tip: card.isPlaying ? "Stop" : "Play"
-                                    onClicked: card.isPlaying
-                                        ? manager.backend.stopSample(card.index)
-                                        : manager.backend.playSample(card.index, false)
+                                    onClicked: {
+                                        if (!card.available) {
+                                            manager.backend.playSample(card.index, false)
+                                            return
+                                        }
+                                        if (card.isPlaying)
+                                            manager.backend.stopSample(card.index)
+                                        else
+                                            manager.backend.playSample(card.index, false)
+                                    }
                                 }
 
                                 IconButton {
@@ -165,6 +174,7 @@ Item {
                                     iconSize: 15
                                     iconName: "edit"
                                     tip: "Edit"
+                                    enabled: card.available
                                     onClicked: manager.editSampleRequested(
                                         card.index,
                                         card.sampleName,
@@ -178,6 +188,7 @@ Item {
                                     iconSize: 15
                                     iconName: "file"
                                     tip: "File"
+                                    enabled: card.available
                                     onClicked: manager.backend.changeSampleFile(card.index)
                                 }
 

@@ -54,9 +54,11 @@ AppPanel {
                         required property color foreColor
                         required property real sampleVolume
                         required property bool sampleStopSounds
+                        readonly property bool available: samplerConsole.backend.sampleAvailable(sampleTile.index)
 
                         width: 52
                         height: 52
+                        opacity: sampleTile.available ? 1.0 : 0.4
                         radius: 8
                         color: sampleMouse.pressed
                             ? AppTheme.tilePressed
@@ -112,6 +114,11 @@ AppPanel {
                                 }
 
                                 samplerConsole.moveFromIndex = -1
+                                if (!sampleTile.available) {
+                                    samplerConsole.backend.playSample(sampleTile.index, mouse.button === Qt.RightButton)
+                                    return
+                                }
+
                                 if (samplerConsole.backend.settingsMode) {
                                     samplerConsole.editSampleRequested(
                                         sampleTile.index,

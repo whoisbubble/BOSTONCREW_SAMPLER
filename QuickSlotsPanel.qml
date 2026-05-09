@@ -50,10 +50,12 @@ AppPanel {
 
                     readonly property bool active: panel.backend.stageActive
                         && panel.backend.currentSlideIndex === quickTile.index
+                    readonly property bool available: panel.backend.quickSlideAvailable(quickTile.index)
 
                     visible: quickTile.index < 12
                     Layout.preferredWidth: 40
                     Layout.preferredHeight: 40
+                    opacity: quickTile.available ? 1.0 : 0.38
                     radius: 7
                     color: quickMouse.pressed
                         ? AppTheme.tilePressed
@@ -67,10 +69,12 @@ AppPanel {
                     Text {
                         anchors.fill: parent
                         anchors.margins: 4
-                        text: quickTile.isDefault ? String(quickTile.index + 1) : quickTile.folderName
+                        text: quickTile.available
+                            ? (quickTile.isDefault ? String(quickTile.index + 1) : quickTile.folderName)
+                            : "LOCK"
                         color: AppTheme.text
                         font.family: AppTheme.fontFamily
-                        font.pixelSize: quickTile.isDefault ? 15 : 8
+                        font.pixelSize: !quickTile.available ? 8 : (quickTile.isDefault ? 15 : 8)
                         font.weight: Font.DemiBold
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
@@ -98,7 +102,10 @@ AppPanel {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: function(mouse) {
                             if (mouse.button === Qt.RightButton || panel.backend.settingsMode) {
-                                panel.assignQuickSlotRequested(quickTile.index)
+                                if (quickTile.available)
+                                    panel.assignQuickSlotRequested(quickTile.index)
+                                else
+                                    panel.backend.playQuickSlide(quickTile.index)
                                 return
                             }
 

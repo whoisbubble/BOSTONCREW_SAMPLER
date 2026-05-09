@@ -50,7 +50,7 @@ Item {
             }
 
             IconButton {
-                visible: library.selectedIndex >= 0
+                visible: library.selectedIndex >= 0 && library.backend.librarySlideAvailable(library.selectedIndex)
                 Layout.preferredWidth: visible ? 32 : 0
                 Layout.preferredHeight: 32
                 side: 32
@@ -104,11 +104,13 @@ Item {
 
                         readonly property bool selected: library.selectedIndex === row.index
                         readonly property bool matchesSearch: library.slideMatches(row.folderName, row.slideType, row.mediaPaths, row.mediaSampleNames)
+                        readonly property bool available: library.backend.librarySlideAvailable(row.index)
                         readonly property int cardHeight: row.mediaCount > 0 ? 168 : 94
 
                         visible: row.matchesSearch
                         width: slideColumn.width
                         height: row.cardHeight
+                        opacity: row.available ? 1.0 : 0.42
                         radius: AppTheme.tileRadius
                         color: row.selected
                             ? AppTheme.surfaceSoft
@@ -203,6 +205,7 @@ Item {
                                             side: 28
                                             iconSize: 14
                                             iconName: "image"
+                                            enabled: row.available
                                             onClicked: library.backend.addMediaToLibrarySlide(row.index)
                                         }
 
@@ -210,6 +213,7 @@ Item {
                                             side: 28
                                             iconSize: 14
                                             iconName: "folder"
+                                            enabled: row.available
                                             onClicked: library.backend.openLibraryFolder(row.index)
                                         }
 
@@ -260,9 +264,11 @@ Item {
                                             readonly property bool hasCue: !!(row.mediaHasSamples && row.mediaHasSamples[mediaTile.index])
                                             readonly property string cueName: row.mediaSampleNames && mediaTile.index < row.mediaSampleNames.length ? row.mediaSampleNames[mediaTile.index] : ""
                                             readonly property bool repeats: !!(row.mediaRepeats && row.mediaRepeats[mediaTile.index])
+                                            readonly property bool available: library.backend.slideMediaAvailable(row.index, mediaTile.index)
 
                                             width: 206
                                             height: 66
+                                            opacity: mediaTile.available ? 1.0 : 0.45
                                             radius: 8
                                             color: mediaHover.hovered ? AppTheme.tileHover : AppTheme.inputBackground
                                             border.width: 1
@@ -341,7 +347,7 @@ Item {
                                                             side: 20
                                                             iconSize: 11
                                                             iconName: "up"
-                                                            enabled: mediaTile.index > 0
+                                                            enabled: mediaTile.available && mediaTile.index > 0
                                                             onClicked: library.backend.moveLibrarySlideMedia(row.index, mediaTile.index, mediaTile.index - 1)
                                                         }
 
@@ -351,7 +357,7 @@ Item {
                                                             side: 20
                                                             iconSize: 11
                                                             iconName: "down"
-                                                            enabled: mediaTile.index + 1 < row.mediaPaths.length
+                                                            enabled: mediaTile.available && mediaTile.index + 1 < row.mediaPaths.length && library.backend.slideMediaAvailable(row.index, mediaTile.index + 1)
                                                             onClicked: library.backend.moveLibrarySlideMedia(row.index, mediaTile.index, mediaTile.index + 1)
                                                         }
 
@@ -361,7 +367,7 @@ Item {
                                                             side: 20
                                                             iconSize: 11
                                                             iconName: "repeat"
-                                                            enabled: mediaTile.isVideo
+                                                            enabled: mediaTile.available && mediaTile.isVideo
                                                             accentFill: mediaTile.repeats
                                                             onClicked: library.backend.setLibrarySlideMediaRepeats(row.index, mediaTile.index, !mediaTile.repeats)
                                                         }
@@ -372,6 +378,7 @@ Item {
                                                             side: 20
                                                             iconSize: 11
                                                             iconName: "audio"
+                                                            enabled: mediaTile.available
                                                             accentFill: mediaTile.hasCue
                                                             onClicked: function(mouse) {
                                                                 if (mouse.button === Qt.RightButton && mediaTile.hasCue)
@@ -389,6 +396,7 @@ Item {
                                                             iconSize: 11
                                                             iconName: "close"
                                                             dangerFill: true
+                                                            enabled: mediaTile.available
                                                             onClicked: library.backend.clearSampleFromLibrarySlideMedia(row.index, mediaTile.index)
                                                         }
 

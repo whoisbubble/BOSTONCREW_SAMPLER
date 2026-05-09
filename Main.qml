@@ -86,32 +86,24 @@ ApplicationWindow {
                 anchors.top: titleBar.bottom
                 anchors.bottom: parent.bottom
                 backend: root.backend
-                enabled: root.backend.licenseAllowed
-                opacity: root.backend.licenseAllowed ? 1.0 : 0.25
                 timerRunning: timerWindow.running
                 onAssignQuickSlotRequested: function(index) {
-                    if (root.backend.licenseAllowed)
-                        assignPopup.openFor(index)
+                    assignPopup.openFor(index)
                 }
                 onEditSampleRequested: function(index, sampleName, volume, stopSounds, sampleColor) {
-                    if (root.backend.licenseAllowed)
-                        sampleDialog.openEditor(index, sampleName, volume, stopSounds, sampleColor)
+                    sampleDialog.openEditor(index, sampleName, volume, stopSounds, sampleColor)
                 }
                 onEditSlideRequested: function(index, folderName, slideType) {
-                    if (root.backend.licenseAllowed)
-                        slideDialog.openEditor(index, folderName, slideType)
+                    slideDialog.openEditor(index, folderName, slideType)
                 }
                 onTimerRequested: {
-                    if (root.backend.licenseAllowed)
-                        timerWindow.openTimer()
+                    timerWindow.openTimer()
                 }
                 onManagerRequested: {
-                    if (root.backend.licenseAllowed)
-                        slideManagerWindow.openManager()
+                    slideManagerWindow.openManager()
                 }
                 onPreviewRequested: {
-                    if (root.backend.licenseAllowed)
-                        previewSelectWindow.openPreview()
+                    previewSelectWindow.openPreview()
                 }
             }
 
@@ -266,14 +258,8 @@ ApplicationWindow {
         function onLicenseStateChanged() {
             if (root.backend.licenseAllowed)
                 return
-            assignPopup.close()
-            sampleDialog.close()
-            slideDialog.close()
             hostPopup.close()
             hostInfoWindow.hide()
-            slideManagerWindow.hide()
-            timerWindow.hide()
-            previewSelectWindow.hide()
             remoteWindow.hide()
         }
     }

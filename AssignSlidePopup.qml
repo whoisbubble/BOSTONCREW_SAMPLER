@@ -105,10 +105,12 @@ Popup {
                 required property bool hasSample
 
                 readonly property bool matchesSearch: popup.slideMatches(row.folderName, row.slideType)
+                readonly property bool available: popup.backend.librarySlideAvailable(row.index)
 
                 width: ListView.view ? ListView.view.width : 380
                 height: row.matchesSearch ? 58 : 0
                 visible: row.matchesSearch
+                opacity: row.available ? 1.0 : 0.42
                 radius: AppTheme.tileRadius
                 color: rowMouse.containsMouse ? AppTheme.tileHover : AppTheme.tile
                 border.color: AppTheme.border
@@ -157,6 +159,10 @@ Popup {
                     anchors.fill: parent
                     hoverEnabled: true
                     onClicked: {
+                        if (!row.available) {
+                            popup.backend.assignQuickSlide(popup.quickIndex, row.index)
+                            return
+                        }
                         popup.backend.assignQuickSlide(popup.quickIndex, row.index)
                         popup.close()
                     }

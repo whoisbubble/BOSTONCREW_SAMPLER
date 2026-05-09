@@ -43,6 +43,7 @@ qt_add_qml_module(appCPlusEventSampler
         EditWorkspace.qml
         HostInfoWindow.qml
         HostPopup.qml
+        HelpPopup.qml
         IconButton.qml
         LicenseGate.qml
         Main.qml

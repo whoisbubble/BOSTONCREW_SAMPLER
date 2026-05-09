@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 
 Item {
@@ -152,6 +153,11 @@ Item {
                                 workspace.backend.playPreviewMedia(tile.index, 0)
                         }
                     }
+
+                    ToolTip.visible: tileMouse.containsMouse
+                    ToolTip.delay: 650
+                    ToolTip.timeout: 7500
+                    ToolTip.text: "Left: media + P1 sound\nRight: media + OK sound\nWheel click: media only"
                 }
             }
         }

@@ -142,7 +142,7 @@ Popup {
             id: stopSoundsCheck
             text: "Stop other sounds"
             checked: dialog.sampleStopSounds
-            onToggled: dialog.sampleStopSounds = stopSoundsCheck.checked
+            onToggled: function(checked) { dialog.sampleStopSounds = checked }
         }
 
         RowLayout {

@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 
 Item {
     id: control
@@ -67,4 +68,9 @@ Item {
         cursorShape: Qt.PointingHandCursor
         onClicked: function(mouse) { control.clicked(mouse) }
     }
+
+    ToolTip.visible: control.tip !== "" && mouseArea.containsMouse
+    ToolTip.delay: 650
+    ToolTip.timeout: 6000
+    ToolTip.text: control.tip
 }

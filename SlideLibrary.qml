@@ -56,6 +56,7 @@ Item {
                 side: 32
                 iconSize: 16
                 iconName: "edit"
+                tip: "Edit selected slide"
                 onClicked: library.editSlideRequested(library.selectedIndex, library.selectedName, library.selectedType)
             }
 
@@ -65,6 +66,7 @@ Item {
                 side: 32
                 iconSize: 16
                 iconName: "plus"
+                tip: "New slide"
                 onClicked: library.backend.createLibrarySlide()
             }
         }
@@ -206,6 +208,7 @@ Item {
                                             iconSize: 14
                                             iconName: "image"
                                             enabled: row.available
+                                            tip: "Add media"
                                             onClicked: library.backend.addMediaToLibrarySlide(row.index)
                                         }
 
@@ -214,6 +217,7 @@ Item {
                                             iconSize: 14
                                             iconName: "folder"
                                             enabled: row.available
+                                            tip: "Open slide folder"
                                             onClicked: library.backend.openLibraryFolder(row.index)
                                         }
 
@@ -222,6 +226,7 @@ Item {
                                             iconSize: 14
                                             iconName: "trash"
                                             dangerFill: true
+                                            tip: "Delete slide"
                                             onClicked: {
                                                 library.selectedIndex = -1
                                                 library.backend.deleteLibrarySlide(row.index)
@@ -348,6 +353,7 @@ Item {
                                                             iconSize: 11
                                                             iconName: "up"
                                                             enabled: mediaTile.available && mediaTile.index > 0
+                                                            tip: "Move media earlier"
                                                             onClicked: library.backend.moveLibrarySlideMedia(row.index, mediaTile.index, mediaTile.index - 1)
                                                         }
 
@@ -358,6 +364,7 @@ Item {
                                                             iconSize: 11
                                                             iconName: "down"
                                                             enabled: mediaTile.available && mediaTile.index + 1 < row.mediaPaths.length && library.backend.slideMediaAvailable(row.index, mediaTile.index + 1)
+                                                            tip: "Move media later"
                                                             onClicked: library.backend.moveLibrarySlideMedia(row.index, mediaTile.index, mediaTile.index + 1)
                                                         }
 
@@ -369,6 +376,7 @@ Item {
                                                             iconName: "repeat"
                                                             enabled: mediaTile.available && mediaTile.isVideo
                                                             accentFill: mediaTile.repeats
+                                                            tip: "Toggle video repeat"
                                                             onClicked: library.backend.setLibrarySlideMediaRepeats(row.index, mediaTile.index, !mediaTile.repeats)
                                                         }
 
@@ -380,6 +388,9 @@ Item {
                                                             iconName: "audio"
                                                             enabled: mediaTile.available
                                                             accentFill: mediaTile.hasCue
+                                                            tip: mediaTile.hasCue
+                                                                ? "Left: change cue\nRight: remove cue"
+                                                                : "Assign cue sound"
                                                             onClicked: function(mouse) {
                                                                 if (mouse.button === Qt.RightButton && mediaTile.hasCue)
                                                                     library.backend.clearSampleFromLibrarySlideMedia(row.index, mediaTile.index)
@@ -397,6 +408,7 @@ Item {
                                                             iconName: "close"
                                                             dangerFill: true
                                                             enabled: mediaTile.available
+                                                            tip: "Remove cue"
                                                             onClicked: library.backend.clearSampleFromLibrarySlideMedia(row.index, mediaTile.index)
                                                         }
 
@@ -407,6 +419,7 @@ Item {
                                                             iconSize: 11
                                                             iconName: "trash"
                                                             dangerFill: true
+                                                            tip: "Delete media"
                                                             onClicked: library.backend.deleteLibrarySlideMedia(row.index, mediaTile.index)
                                                         }
                                                     }

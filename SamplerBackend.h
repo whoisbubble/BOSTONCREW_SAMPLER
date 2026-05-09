@@ -367,11 +367,13 @@ private:
 
     bool startPlayback(SampleListModel *model, int row, bool showErrors, QObject *ownedObject = nullptr);
     void playMediaCue(const SlideData &slide, int mediaIndex);
-    void markPlaying(SampleListModel *model, int row, bool playing);
+    int activePlaybackCountFor(SampleListModel *model, int row) const;
+    void syncPlayingState(SampleListModel *model, int row);
     void reindexActiveRowsAfterRemoval(SampleListModel *model, int removedRow);
     void reindexActiveRowsAfterMove(SampleListModel *model, int from, int to);
     void cleanupPlaybackEntry(int index, bool stopPlayer);
     void removeActiveFor(SampleListModel *model, int row);
+    void removeActiveExcept(SampleListModel *model, int row);
     void cleanupFinishedPlayback(QMediaPlayer *player);
 
     void syncStageToCurrentSlide();

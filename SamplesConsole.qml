@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Controls
 
 AppPanel {
     id: samplerConsole
@@ -132,6 +133,13 @@ AppPanel {
                                 samplerConsole.backend.playSample(sampleTile.index, mouse.button === Qt.RightButton)
                             }
                         }
+
+                        ToolTip.visible: sampleMouse.containsMouse
+                        ToolTip.delay: 650
+                        ToolTip.timeout: 7000
+                        ToolTip.text: samplerConsole.backend.settingsMode
+                            ? "Edit mode: click to edit sample\nShift + click two samples to move"
+                            : "Left: play sample\nRight: play + next media\nShift + click two samples to move"
                     }
                 }
 
@@ -161,6 +169,11 @@ AppPanel {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: samplerConsole.backend.addSample()
                     }
+
+                    ToolTip.visible: addMouse.containsMouse
+                    ToolTip.delay: 650
+                    ToolTip.timeout: 5000
+                    ToolTip.text: "Add sample"
                 }
 
                 Rectangle {
@@ -199,6 +212,13 @@ AppPanel {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: samplerConsole.backend.settingsMode = !samplerConsole.backend.settingsMode
                     }
+
+                    ToolTip.visible: settingsMouse.containsMouse
+                    ToolTip.delay: 650
+                    ToolTip.timeout: 6000
+                    ToolTip.text: samplerConsole.backend.settingsMode
+                        ? "Switch to live mode"
+                        : "Switch to edit mode"
                 }
             }
         }

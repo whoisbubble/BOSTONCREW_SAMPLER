@@ -11,6 +11,7 @@ Item {
 
     signal hostRequested()
     signal remoteRequested()
+    signal helpRequested()
     signal minimizeRequested()
     signal maximizeRequested()
     signal closeRequested()
@@ -45,6 +46,7 @@ Item {
             iconSize: 16
             iconSource: "qrc:/assets/icons/host.svg"
             showChrome: false
+            tip: "Host connection"
             enabled: bar.licensed
             onClicked: bar.hostRequested()
         }
@@ -56,8 +58,20 @@ Item {
             iconSize: 16
             iconSource: "qrc:/assets/icons/remote.svg"
             showChrome: false
+            tip: "Video remote"
             enabled: bar.licensed
             onClicked: bar.remoteRequested()
+        }
+
+        IconButton {
+            Layout.preferredWidth: 32
+            Layout.preferredHeight: 30
+            side: 30
+            iconSize: 16
+            iconName: "help"
+            showChrome: false
+            tip: "Quick help"
+            onClicked: bar.helpRequested()
         }
 
         Rectangle {
@@ -70,6 +84,7 @@ Item {
             Layout.preferredWidth: 34
             Layout.preferredHeight: 30
             iconName: "min"
+            tip: "Minimize"
             onClicked: bar.minimizeRequested()
         }
 
@@ -77,6 +92,7 @@ Item {
             Layout.preferredWidth: 34
             Layout.preferredHeight: 30
             iconName: bar.maximized ? "restore" : "max"
+            tip: bar.maximized ? "Restore" : "Maximize"
             onClicked: bar.maximizeRequested()
         }
 
@@ -85,6 +101,7 @@ Item {
             Layout.preferredHeight: 30
             iconName: "close"
             destructive: true
+            tip: "Close"
             onClicked: bar.closeRequested()
         }
     }

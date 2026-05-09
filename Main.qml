@@ -72,6 +72,7 @@ ApplicationWindow {
                     if (root.backend.licenseAllowed)
                         remoteWindow.openRemote()
                 }
+                onHelpRequested: helpPopup.open()
                 onMinimizeRequested: root.showMinimized()
                 onMaximizeRequested: root.maximized ? root.showNormal() : root.showMaximized()
                 onCloseRequested: {
@@ -208,6 +209,11 @@ ApplicationWindow {
         id: slideDialog
         parent: Overlay.overlay
         backend: root.backend
+    }
+
+    HelpPopup {
+        id: helpPopup
+        parent: Overlay.overlay
     }
 
     HostPopup {

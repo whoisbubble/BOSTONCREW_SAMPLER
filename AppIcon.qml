@@ -291,6 +291,21 @@ Canvas {
             line(0.22, 0.54, 0.42, 0.72)
             line(0.42, 0.72, 0.78, 0.30)
             break
+        case "help":
+            ctx.beginPath()
+            ctx.arc(ox + 0.50 * s, oy + 0.50 * s, 0.34 * s, 0, Math.PI * 2)
+            ctx.stroke()
+            ctx.beginPath()
+            ctx.arc(ox + 0.50 * s, oy + 0.74 * s, 0.035 * s, 0, Math.PI * 2)
+            ctx.fill()
+            ctx.beginPath()
+            ctx.moveTo(ox + 0.38 * s, oy + 0.36 * s)
+            ctx.quadraticCurveTo(ox + 0.42 * s, oy + 0.24 * s, ox + 0.54 * s, oy + 0.27 * s)
+            ctx.quadraticCurveTo(ox + 0.68 * s, oy + 0.31 * s, ox + 0.61 * s, oy + 0.46 * s)
+            ctx.quadraticCurveTo(ox + 0.57 * s, oy + 0.54 * s, ox + 0.50 * s, oy + 0.58 * s)
+            ctx.lineTo(ox + 0.50 * s, oy + 0.64 * s)
+            ctx.stroke()
+            break
         case "close":
             line(0.24, 0.24, 0.76, 0.76)
             line(0.76, 0.24, 0.24, 0.76)

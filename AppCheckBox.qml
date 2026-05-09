@@ -6,7 +6,7 @@ Item {
     property bool checked: false
     property string text: ""
 
-    signal toggled()
+    signal toggled(bool checked)
 
     implicitWidth: contentRow.implicitWidth
     implicitHeight: 24
@@ -51,8 +51,7 @@ Item {
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         onClicked: {
-            control.checked = !control.checked
-            control.toggled()
+            control.toggled(!control.checked)
         }
     }
 }

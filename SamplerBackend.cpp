@@ -30,6 +30,7 @@ constexpr int FreeSampleCount = 5;
 constexpr int FreeLibrarySlideCount = 5;
 constexpr int FreeSlideMediaCount = 5;
 constexpr int HostConnectTimeoutMs = 7000;
+constexpr int MaxActivePlaybacks = 24;
 
 QString normalizedRelative(QString value)
 {
@@ -1878,8 +1879,10 @@ bool SamplerBackend::startPlayback(SampleListModel *model, int row, bool showErr
     }
 
     if (sample->stopSounds)
-        stopAllSamples();
-    removeActiveFor(model, row);
+        removeActiveExcept(model, row);
+
+    while (m_activePlaybacks.count() >= MaxActivePlaybacks)
+        cleanupPlaybackEntry(0, true);
 
     auto *player = new QMediaPlayer(this);
     auto *output = new QAudioOutput(this);
@@ -1905,7 +1908,7 @@ bool SamplerBackend::startPlayback(SampleListModel *model, int row, bool showErr
         cleanupFinishedPlayback(player);
     });
 
-    markPlaying(model, row, true);
+    syncPlayingState(model, row);
     if (m_audioPaused) {
         m_audioPaused = false;
         emit audioPausedChanged();
@@ -1930,11 +1933,23 @@ void SamplerBackend::playMediaCue(const SlideData &slide, int mediaIndex)
         temporaryModel->deleteLater();
 }
 
-void SamplerBackend::markPlaying(SampleListModel *model, int row, bool playing)
+int SamplerBackend::activePlaybackCountFor(SampleListModel *model, int row) const
+{
+    if (!model || row < 0)
+        return 0;
+    return std::count_if(m_activePlaybacks.cbegin(), m_activePlaybacks.cend(), [model, row](const ActivePlayback &active) {
+        return active.model == model && active.row == row;
+    });
+}
+
+void SamplerBackend::syncPlayingState(SampleListModel *model, int row)
 {
     if (!model)
         return;
     if (SampleData *sample = model->at(row)) {
+        const bool playing = activePlaybackCountFor(model, row) > 0;
+        if (sample->isPlaying == playing)
+            return;
         sample->isPlaying = playing;
         model->notifyChanged(row);
     }
@@ -1977,7 +1992,7 @@ void SamplerBackend::cleanupPlaybackEntry(int index, bool stopPlayer)
         active.player->stop();
     }
 
-    markPlaying(active.model, active.row, false);
+    syncPlayingState(active.model, active.row);
 
     if (active.player)
         active.player->deleteLater();
@@ -2000,7 +2015,17 @@ void SamplerBackend::removeActiveFor(SampleListModel *model, int row)
             continue;
         cleanupPlaybackEntry(i, true);
     }
-    markPlaying(model, row, false);
+    syncPlayingState(model, row);
+}
+
+void SamplerBackend::removeActiveExcept(SampleListModel *model, int row)
+{
+    for (int i = m_activePlaybacks.count() - 1; i >= 0; --i) {
+        const ActivePlayback active = m_activePlaybacks.at(i);
+        if (active.model == model && active.row == row)
+            continue;
+        cleanupPlaybackEntry(i, true);
+    }
 }
 
 void SamplerBackend::cleanupFinishedPlayback(QMediaPlayer *player)

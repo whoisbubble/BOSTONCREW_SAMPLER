@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Controls
 import QtMultimedia
 
 AppPanel {
@@ -113,6 +114,7 @@ AppPanel {
             height: 34
             side: 34
             iconSize: 18
+            tip: "Previous media"
             onClicked: panel.backend.previousSlide()
         }
 
@@ -122,6 +124,7 @@ AppPanel {
             height: 34
             side: 34
             iconSize: 18
+            tip: "Next media"
             onClicked: panel.backend.nextSlide()
         }
 
@@ -149,6 +152,7 @@ AppPanel {
             height: 34
             side: 34
             iconSize: 18
+            tip: "Open cue window"
             onClicked: panel.previewRequested()
         }
 
@@ -178,6 +182,11 @@ AppPanel {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: panel.showNextPreview = !panel.showNextPreview
             }
+
+            ToolTip.visible: previewToggleMouse.containsMouse
+            ToolTip.delay: 650
+            ToolTip.timeout: 5000
+            ToolTip.text: "Toggle current/next preview"
         }
     }
 }

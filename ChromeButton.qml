@@ -1,10 +1,12 @@
 import QtQuick
+import QtQuick.Controls
 
 Item {
     id: control
 
     property string iconName: "min"
     property bool destructive: false
+    property string tip: ""
 
     signal clicked(var mouse)
 
@@ -39,4 +41,9 @@ Item {
         cursorShape: Qt.PointingHandCursor
         onClicked: function(mouse) { control.clicked(mouse) }
     }
+
+    ToolTip.visible: control.tip !== "" && mouseArea.containsMouse
+    ToolTip.delay: 650
+    ToolTip.timeout: 5000
+    ToolTip.text: control.tip
 }

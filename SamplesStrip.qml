@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Controls
 
 ListView {
     id: strip
@@ -82,5 +83,12 @@ ListView {
                 strip.backend.playSample(chip.index, mouse.button === Qt.RightButton)
             }
         }
+
+        ToolTip.visible: chipMouse.containsMouse
+        ToolTip.delay: 650
+        ToolTip.timeout: 6500
+        ToolTip.text: strip.backend.settingsMode
+            ? "Edit mode: click to edit sample"
+            : "Left: play sample\nRight: play + next media"
     }
 }

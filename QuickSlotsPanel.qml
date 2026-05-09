@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 
 AppPanel {
@@ -112,6 +113,11 @@ AppPanel {
                             panel.backend.playQuickSlide(quickTile.index)
                         }
                     }
+
+                    ToolTip.visible: quickMouse.containsMouse
+                    ToolTip.delay: 650
+                    ToolTip.timeout: 6500
+                    ToolTip.text: "Left: open slide\nRight: assign slide"
                 }
             }
         }
@@ -124,6 +130,7 @@ AppPanel {
             showChrome: false
             side: 24
             iconSize: 15
+            tip: "Open slides manager"
             onClicked: panel.managerRequested()
         }
     }
@@ -142,6 +149,7 @@ AppPanel {
             iconSource: "qrc:/assets/icons/play.svg"
             side: 34
             iconSize: 18
+            tip: "P1 sound\nRight: sound + next media"
             onClicked: function(mouse) { panel.backend.playFixedSample(0, mouse.button === Qt.RightButton) }
         }
 
@@ -151,6 +159,7 @@ AppPanel {
             iconSource: "qrc:/assets/icons/thumb-up.svg"
             side: 34
             iconSize: 18
+            tip: "OK sound\nRight: sound + next media"
             onClicked: function(mouse) { panel.backend.playFixedSample(1, mouse.button === Qt.RightButton) }
         }
 
@@ -160,6 +169,7 @@ AppPanel {
             iconSource: "qrc:/assets/icons/thumb-down.svg"
             side: 34
             iconSize: 18
+            tip: "NO sound\nRight: sound + next media"
             onClicked: function(mouse) { panel.backend.playFixedSample(2, mouse.button === Qt.RightButton) }
         }
 
@@ -170,6 +180,7 @@ AppPanel {
             accentFill: panel.timerRunning
             side: 34
             iconSize: 18
+            tip: "Timer sound\nMiddle: open timer\nRight: sound + next media"
             onClicked: function(mouse) {
                 if (mouse.button === Qt.MiddleButton) {
                     panel.timerRequested()
@@ -189,6 +200,7 @@ AppPanel {
             accentFill: panel.backend.audioPaused
             side: 34
             iconSize: 18
+            tip: panel.backend.audioPaused ? "Resume all sounds" : "Pause all sounds"
             onClicked: panel.backend.togglePause()
         }
 
@@ -199,6 +211,7 @@ AppPanel {
             dangerFill: true
             side: 34
             iconSize: 18
+            tip: "Stop all sounds"
             onClicked: panel.backend.stopAllSamples()
         }
     }

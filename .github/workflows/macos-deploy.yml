@@ -1,0 +1,63 @@
+name: macOS Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  package-macos:
+    name: Package macOS x64
+    runs-on: macos-15-intel
+    timeout-minutes: 60
+
+    env:
+      QT_VERSION: "6.10.2"
+      CONFIGURATION: Release
+      CMAKE_OSX_ARCHITECTURES: x86_64
+      CMAKE_OSX_DEPLOYMENT_TARGET: "13.0"
+      ARCHIVE_PATH: deploy/BOSTONCREW-SAMPLER-macos-x64.zip
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: mac
+          target: desktop
+          arch: clang_64
+          modules: qtmultimedia
+          cache: true
+
+      - name: Build, test, and package
+        shell: bash
+        run: bash scripts/deploy_macos.sh
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BOSTONCREW-SAMPLER-macos-x64
+          path: ${{ env.ARCHIVE_PATH }}
+          if-no-files-found: error
+
+      - name: Publish tag release asset
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "$ARCHIVE_PATH" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "$ARCHIVE_PATH" --title "$GITHUB_REF_NAME" --notes "macOS x64 build"
+          fi

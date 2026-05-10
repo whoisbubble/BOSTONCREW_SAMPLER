@@ -103,6 +103,21 @@ QVariantList mediaRepeatFlags(const SlideData &slide)
     }
     return flags;
 }
+
+QString bundledToolPath(const QString &toolName)
+{
+#ifdef Q_OS_MACOS
+    const QString executableName = toolName;
+    const QString toolBaseDir = QCoreApplication::applicationDirPath();
+#elif defined(Q_OS_WIN)
+    const QString executableName = toolName + ".exe";
+    const QString toolBaseDir = QCoreApplication::applicationDirPath();
+#else
+    const QString executableName = toolName;
+    const QString toolBaseDir = QCoreApplication::applicationDirPath();
+#endif
+    return QDir(toolBaseDir).absoluteFilePath("ffmpeg/" + executableName);
+}
 }
 
 SampleListModel::SampleListModel(QObject *parent)
@@ -1326,6 +1341,11 @@ bool SamplerBackend::canAddMediaToLibrarySlide(int index) const
 
 QString SamplerBackend::baseDir() const
 {
+#ifdef Q_OS_MACOS
+    const QString dataLocation = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    if (!dataLocation.isEmpty())
+        return dataLocation;
+#endif
     return QCoreApplication::applicationDirPath();
 }
 
@@ -1421,7 +1441,7 @@ QString SamplerBackend::copyFileTo(const QString &sourcePath, const QString &dir
     if (extension.isEmpty())
         extension = "dat";
 
-    const QString ffmpeg = QDir(baseDir()).absoluteFilePath("ffmpeg/ffmpeg.exe");
+    const QString ffmpeg = bundledToolPath("ffmpeg");
     const bool canTranscode = forceMp3Name && QFile::exists(ffmpeg);
     if (canTranscode)
         extension = "mp3";
@@ -1442,7 +1462,7 @@ QString SamplerBackend::copyFileTo(const QString &sourcePath, const QString &dir
 
 double SamplerBackend::probeDuration(const QString &path) const
 {
-    const QString ffprobe = QDir(baseDir()).absoluteFilePath("ffmpeg/ffprobe.exe");
+    const QString ffprobe = bundledToolPath("ffprobe");
     if (!QFile::exists(ffprobe))
         return 0.0;
     QProcess process;

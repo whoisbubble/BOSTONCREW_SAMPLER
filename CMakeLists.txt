@@ -5,6 +5,8 @@ project(CPlusEventSampler VERSION 0.1 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC_COMPILER_PREDEFINES OFF)
 
+set(MACOS_APP_ICON "" CACHE FILEPATH "Path to a macOS .icns bundle icon")
+
 find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 Multimedia Network Widgets Test)
 
 qt_standard_project_setup(REQUIRES 6.10)
@@ -14,6 +16,14 @@ if(WIN32)
     set(APP_ICON_RESOURCE_WINDOWS "${CMAKE_CURRENT_SOURCE_DIR}/app_icon.rc")
 endif()
 
+set(APP_ICON_RESOURCE_MACOS "")
+if(APPLE AND MACOS_APP_ICON AND EXISTS "${MACOS_APP_ICON}")
+    set(APP_ICON_RESOURCE_MACOS "${MACOS_APP_ICON}")
+    set_source_files_properties("${APP_ICON_RESOURCE_MACOS}" PROPERTIES
+        MACOSX_PACKAGE_LOCATION "Resources"
+    )
+endif()
+
 qt_add_executable(appCPlusEventSampler
     main.cpp
     LicenseManager.h
@@ -21,6 +31,7 @@ qt_add_executable(appCPlusEventSampler
     SamplerBackend.h
     SamplerBackend.cpp
     ${APP_ICON_RESOURCE_WINDOWS}
+    ${APP_ICON_RESOURCE_MACOS}
 )
 
 set_source_files_properties(AppTheme.qml PROPERTIES
@@ -90,12 +101,24 @@ qt_add_resources(appCPlusEventSampler app_resources
 # If you are developing for iOS or macOS you should consider setting an
 # explicit, fixed bundle identifier manually though.
 set_target_properties(appCPlusEventSampler PROPERTIES
-#    MACOSX_BUNDLE_GUI_IDENTIFIER com.example.appCPlusEventSampler
+    MACOSX_BUNDLE_GUI_IDENTIFIER ru.bostoncrew.sampler
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
     MACOSX_BUNDLE TRUE
     WIN32_EXECUTABLE TRUE
 )
+
+if(APPLE)
+    set_target_properties(appCPlusEventSampler PROPERTIES
+        OUTPUT_NAME "BOSTONCREW SAMPLER"
+        MACOSX_BUNDLE_BUNDLE_NAME "BOSTONCREW SAMPLER"
+    )
+    if(APP_ICON_RESOURCE_MACOS)
+        set_target_properties(appCPlusEventSampler PROPERTIES
+            MACOSX_BUNDLE_ICON_FILE "app_icon.icns"
+        )
+    endif()
+endif()
 
 target_link_libraries(appCPlusEventSampler
     PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia Qt6::Network Qt6::Widgets

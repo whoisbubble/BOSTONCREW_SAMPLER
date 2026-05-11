@@ -13,9 +13,9 @@ CACHE_DIR="${CACHE_DIR:-deploy/.cache/macos}"
 PACKAGE_ARCH="${PACKAGE_ARCH:-macos}"
 ARCHIVE_PATH="${ARCHIVE_PATH:-deploy/BOSTONCREW-SAMPLER-macos.zip}"
 DMG_PATH="${DMG_PATH:-deploy/BOSTONCREW-SAMPLER-${PACKAGE_ARCH}.dmg}"
-APP_BUNDLE_NAME="${APP_BUNDLE_NAME:-BOSTONCREW SAMPLER.app}"
-DMG_VOLUME_NAME="${DMG_VOLUME_NAME:-BOSTONCREW SAMPLER}"
-CMAKE_OSX_DEPLOYMENT_TARGET="${CMAKE_OSX_DEPLOYMENT_TARGET:-13.0}"
+APP_BUNDLE_NAME="${APP_BUNDLE_NAME:-BOSTONCREW-SAMPLER.app}"
+DMG_VOLUME_NAME="${DMG_VOLUME_NAME:-BOSTONCREW-SAMPLER}"
+CMAKE_OSX_DEPLOYMENT_TARGET="${CMAKE_OSX_DEPLOYMENT_TARGET:-11.0}"
 CMAKE_OSX_ARCHITECTURES="${CMAKE_OSX_ARCHITECTURES:-x86_64}"
 FFMPEG_DIR="${FFMPEG_DIR:-}"
 FFMPEG_ARCH="${FFMPEG_ARCH:-auto}"
@@ -364,13 +364,13 @@ fi
 echo "Removing macOS quarantine from: $dmg_path"
 xattr -dr com.apple.quarantine "$dmg_path" 2>/dev/null || true
 
-echo "Opening DMG. Drag BOSTONCREW SAMPLER.app to Applications, then open it from Applications."
+echo "Opening DMG. Drag BOSTONCREW-SAMPLER.app to Applications, then open it from Applications."
 open "$dmg_path"
 EOF
     chmod +x "$helper_path"
 
     cat > "$readme_path" <<EOF
-BOSTONCREW SAMPLER macOS unsigned build
+BOSTONCREW-SAMPLER macOS unsigned build
 
 This package is not signed with Apple Developer ID and is not notarized by Apple.
 Because of that, macOS Gatekeeper can block the first launch and ask you to allow an app from an unidentified developer.
@@ -378,15 +378,15 @@ Because of that, macOS Gatekeeper can block the first launch and ask you to allo
 Recommended first launch:
 
 1. Open the DMG.
-2. Drag BOSTONCREW SAMPLER.app to Applications.
-3. Try to open BOSTONCREW SAMPLER.app.
+2. Drag BOSTONCREW-SAMPLER.app to Applications.
+3. Try to open BOSTONCREW-SAMPLER.app.
 4. If macOS blocks it, open System Settings -> Privacy & Security and click Open Anyway.
 
 If macOS says the app is damaged instead of showing the Open Anyway flow:
 
 1. Keep $UNSIGNED_HELPER_NAME next to the DMG file.
 2. Double-click $UNSIGNED_HELPER_NAME.
-3. Open the DMG again and drag BOSTONCREW SAMPLER.app to Applications.
+3. Open the DMG again and drag BOSTONCREW-SAMPLER.app to Applications.
 
 Manual Terminal command if needed:
 

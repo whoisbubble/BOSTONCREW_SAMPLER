@@ -24,19 +24,20 @@ jobs:
           - package_arch: x64
             runner: macos-15-intel
             cmake_arch: x86_64
-            deployment_target: "13.0"
+            deployment_target: "11.0"
             ffmpeg_arch: amd64
             expected_arch: x86_64
           - package_arch: arm64
             runner: macos-15
             cmake_arch: arm64
-            deployment_target: "13.0"
+            deployment_target: "11.0"
             ffmpeg_arch: arm64
             expected_arch: arm64
 
     env:
-      QT_VERSION: "6.10.2"
+      QT_VERSION: "6.5.3"
       CONFIGURATION: Release
+      NO_ARCHIVE: "1"
       PACKAGE_ARCH: macos-${{ matrix.package_arch }}
       CMAKE_OSX_ARCHITECTURES: ${{ matrix.cmake_arch }}
       CMAKE_OSX_DEPLOYMENT_TARGET: ${{ matrix.deployment_target }}
@@ -45,7 +46,6 @@ jobs:
       EXPECTED_MIN_SYSTEM_VERSION: ${{ matrix.deployment_target }}
       MACOS_NOTARIZE: auto
       EXPECT_NOTARIZED: ${{ secrets.MACOS_CERTIFICATE_BASE64 != '' && secrets.MACOS_CERTIFICATE_PASSWORD != '' && secrets.MACOS_CODESIGN_IDENTITY != '' && secrets.APPLE_ID != '' && secrets.APPLE_TEAM_ID != '' && secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && '1' || '0' }}
-      ARCHIVE_PATH: deploy/BOSTONCREW-SAMPLER-macos-${{ matrix.package_arch }}.zip
       DMG_PATH: deploy/BOSTONCREW-SAMPLER-macos-${{ matrix.package_arch }}.dmg
       MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
       MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
@@ -108,7 +108,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: BOSTONCREW-SAMPLER-macos-${{ matrix.package_arch }}
-          path: ${{ env.ARCHIVE_PATH }}
+          path: |
+            ${{ env.DMG_PATH }}
+            deploy/macos/BOSTONCREW-SAMPLER.app
           if-no-files-found: error
           compression-level: 0
           overwrite: true
@@ -125,7 +127,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: BOSTONCREW-SAMPLER-macos-${{ matrix.package_arch }}
-          path: ${{ env.ARCHIVE_PATH }}
+          path: |
+            ${{ env.DMG_PATH }}
+            deploy/macos/BOSTONCREW-SAMPLER.app
           if-no-files-found: error
           compression-level: 0
           overwrite: true
@@ -140,7 +144,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: BOSTONCREW-SAMPLER-macos-${{ matrix.package_arch }}
-          path: ${{ env.ARCHIVE_PATH }}
+          path: |
+            ${{ env.DMG_PATH }}
+            deploy/macos/BOSTONCREW-SAMPLER.app
           if-no-files-found: error
           compression-level: 0
           overwrite: true
@@ -153,11 +159,11 @@ jobs:
         run: |
           for attempt in 1 2 3; do
             if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-              gh release upload "$GITHUB_REF_NAME" "$ARCHIVE_PATH" --clobber && exit 0
+              gh release upload "$GITHUB_REF_NAME" "$DMG_PATH" --clobber && exit 0
             else
-              gh release create "$GITHUB_REF_NAME" "$ARCHIVE_PATH" --title "$GITHUB_REF_NAME" --notes "macOS builds" && exit 0
+              gh release create "$GITHUB_REF_NAME" "$DMG_PATH" --title "$GITHUB_REF_NAME" --notes "macOS builds" && exit 0
               gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
-                && gh release upload "$GITHUB_REF_NAME" "$ARCHIVE_PATH" --clobber \
+                && gh release upload "$GITHUB_REF_NAME" "$DMG_PATH" --clobber \
                 && exit 0
             fi
             sleep $((attempt * 30))

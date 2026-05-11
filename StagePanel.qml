@@ -27,7 +27,6 @@ AppPanel {
         previewVideoReady = false
         if (activePreviewVideoUrl === "") {
             previewPlayer.stop()
-            previewVideo.clearOutput()
         } else {
             previewPlayer.play()
         }
@@ -85,7 +84,6 @@ AppPanel {
             anchors.fill: parent
             anchors.margins: 4
             fillMode: VideoOutput.PreserveAspectFit
-            endOfStreamPolicy: VideoOutput.KeepLastFrame
             visible: panel.previewIsVideo
             opacity: panel.previewVideoReady ? 1 : 0
         }

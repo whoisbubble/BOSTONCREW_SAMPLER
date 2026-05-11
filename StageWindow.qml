@@ -185,7 +185,6 @@ Window {
             stillImage.source = ""
             surfacePlayer.stop()
             surfacePlayer.source = ""
-            surfaceVideo.clearOutput()
         }
 
         function loadMedia(url, video, shouldRepeat, generation) {
@@ -209,13 +208,11 @@ Window {
 
             if (video) {
                 stillImage.source = ""
-                surfaceVideo.clearOutput()
                 surfacePlayer.source = url
                 surfacePlayer.play()
             } else {
                 surfacePlayer.stop()
                 surfacePlayer.source = ""
-                surfaceVideo.clearOutput()
                 stillImage.source = url
                 if (stillImage.status === Image.Ready)
                     surface.completeReady()
@@ -289,7 +286,6 @@ Window {
 
             anchors.fill: parent
             fillMode: VideoOutput.PreserveAspectFit
-            endOfStreamPolicy: VideoOutput.KeepLastFrame
             visible: surface.isVideo
             opacity: surface.isVideo && surface.frameReady ? 1 : 0
         }

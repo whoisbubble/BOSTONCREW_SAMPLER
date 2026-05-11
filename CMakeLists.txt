@@ -6,18 +6,18 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC_COMPILER_PREDEFINES OFF)
 
 set(MACOS_APP_ICON "" CACHE FILEPATH "Path to a macOS .icns bundle icon")
-set(APP_DISPLAY_NAME "BOSTONCREW SAMPLER")
+set(APP_DISPLAY_NAME "BOSTONCREW-SAMPLER")
 set(APP_EXECUTABLE_NAME "BOSTONCREW-SAMPLER")
 set(APP_BUNDLE_ID "ru.bostoncrew.sampler")
 set(APP_COPYRIGHT "Copyright (c) 2026 BOSTONCREW")
 
 if(APPLE AND NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "13.0" CACHE STRING "Minimum macOS deployment target" FORCE)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum macOS deployment target" FORCE)
 endif()
 
 find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 Multimedia Network Widgets Test)
 
-qt_standard_project_setup(REQUIRES 6.10)
+qt_standard_project_setup(REQUIRES 6.5)
 
 set(APP_ICON_RESOURCE_WINDOWS "")
 if(WIN32)

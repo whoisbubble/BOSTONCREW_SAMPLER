@@ -83,8 +83,9 @@ codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 "$FFMPEG_PATH" -version
 "$FFPROBE_PATH" -version
 
-if otool -L "$EXECUTABLE_PATH" | grep -E "/Users/runner|/opt/homebrew|/usr/local/Cellar|/Qt/" >/dev/null; then
-    otool -L "$EXECUTABLE_PATH"
+DEPENDENCIES="$(otool -L "$EXECUTABLE_PATH" | tail -n +2 | awk '{print $1}')"
+if printf '%s\n' "$DEPENDENCIES" | grep -E "^(/Users/runner|/opt/homebrew|/usr/local/Cellar|/Users/.*/Qt|/opt/Qt|/usr/local/Qt)" >/dev/null; then
+    printf '%s\n' "$DEPENDENCIES"
     echo "The app executable still references build-machine dependency paths." >&2
     exit 1
 fi

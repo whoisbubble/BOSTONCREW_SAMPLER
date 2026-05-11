@@ -45,7 +45,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -66,7 +66,7 @@ jobs:
         run: bash scripts/validate_macos_package.sh
 
       - name: Upload macOS artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: BOSTONCREW-SAMPLER-macos-${{ matrix.package_arch }}
           path: ${{ env.ARCHIVE_PATH }}
@@ -81,7 +81,7 @@ jobs:
 
     steps:
       - name: Download macOS artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: BOSTONCREW-SAMPLER-macos-*
           path: release-assets

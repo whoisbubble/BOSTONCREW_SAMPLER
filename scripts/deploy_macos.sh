@@ -10,13 +10,19 @@ OUTPUT_DIR="${OUTPUT_DIR:-deploy/macos}"
 CONFIGURATION="${CONFIGURATION:-Release}"
 QT_BIN_DIR="${QT_BIN_DIR:-}"
 CACHE_DIR="${CACHE_DIR:-deploy/.cache/macos}"
+PACKAGE_ARCH="${PACKAGE_ARCH:-macos}"
 ARCHIVE_PATH="${ARCHIVE_PATH:-deploy/BOSTONCREW-SAMPLER-macos.zip}"
+DMG_PATH="${DMG_PATH:-deploy/BOSTONCREW-SAMPLER-${PACKAGE_ARCH}.dmg}"
 APP_BUNDLE_NAME="${APP_BUNDLE_NAME:-BOSTONCREW SAMPLER.app}"
+DMG_VOLUME_NAME="${DMG_VOLUME_NAME:-BOSTONCREW SAMPLER}"
 CMAKE_OSX_DEPLOYMENT_TARGET="${CMAKE_OSX_DEPLOYMENT_TARGET:-13.0}"
 CMAKE_OSX_ARCHITECTURES="${CMAKE_OSX_ARCHITECTURES:-x86_64}"
 FFMPEG_DIR="${FFMPEG_DIR:-}"
-FFMPEG_URL="${FFMPEG_URL:-https://evermeet.cx/ffmpeg/getrelease/zip}"
-FFPROBE_URL="${FFPROBE_URL:-https://evermeet.cx/ffmpeg/getrelease/ffprobe/zip}"
+FFMPEG_ARCH="${FFMPEG_ARCH:-auto}"
+FFMPEG_CHANNEL="${FFMPEG_CHANNEL:-release}"
+FFMPEG_BASE_URL="${FFMPEG_BASE_URL:-https://ffmpeg.martin-riedl.de/redirect/latest/macos}"
+FFMPEG_URL="${FFMPEG_URL:-}"
+FFPROBE_URL="${FFPROBE_URL:-}"
 SKIP_FFMPEG="${SKIP_FFMPEG:-0}"
 NO_ARCHIVE="${NO_ARCHIVE:-0}"
 RUN_TESTS="${RUN_TESTS:-1}"
@@ -144,6 +150,22 @@ download_if_missing() {
     curl --fail --location --retry 3 --output "$destination" "$url"
 }
 
+effective_ffmpeg_arch() {
+    if [ "$FFMPEG_ARCH" != "auto" ]; then
+        printf '%s\n' "$FFMPEG_ARCH"
+        return 0
+    fi
+
+    case "$CMAKE_OSX_ARCHITECTURES" in
+        arm64) printf '%s\n' "arm64" ;;
+        x86_64) printf '%s\n' "amd64" ;;
+        *)
+            echo "Set FFMPEG_ARCH to amd64 or arm64 for CMAKE_OSX_ARCHITECTURES=$CMAKE_OSX_ARCHITECTURES." >&2
+            exit 1
+            ;;
+    esac
+}
+
 resolve_ffmpeg_tools() {
     local ffmpeg=""
     local ffprobe=""
@@ -156,13 +178,17 @@ resolve_ffmpeg_tools() {
             exit 1
         fi
     else
-        local ffmpeg_zip="$CACHE_PATH/ffmpeg.zip"
-        local ffprobe_zip="$CACHE_PATH/ffprobe.zip"
-        local extract_path="$CACHE_PATH/ffmpeg"
+        local download_arch
+        download_arch="$(effective_ffmpeg_arch)"
+        local ffmpeg_url="${FFMPEG_URL:-$FFMPEG_BASE_URL/$download_arch/$FFMPEG_CHANNEL/ffmpeg.zip}"
+        local ffprobe_url="${FFPROBE_URL:-$FFMPEG_BASE_URL/$download_arch/$FFMPEG_CHANNEL/ffprobe.zip}"
+        local ffmpeg_zip="$CACHE_PATH/ffmpeg-$download_arch.zip"
+        local ffprobe_zip="$CACHE_PATH/ffprobe-$download_arch.zip"
+        local extract_path="$CACHE_PATH/ffmpeg-$download_arch"
 
         mkdir -p "$CACHE_PATH"
-        download_if_missing "$FFMPEG_URL" "$ffmpeg_zip"
-        download_if_missing "$FFPROBE_URL" "$ffprobe_zip"
+        download_if_missing "$ffmpeg_url" "$ffmpeg_zip"
+        download_if_missing "$ffprobe_url" "$ffprobe_zip"
 
         rm -rf "$extract_path"
         mkdir -p "$extract_path/ffmpeg" "$extract_path/ffprobe"
@@ -209,15 +235,39 @@ sign_app() {
     fi
 }
 
+create_dmg() {
+    local app_path="$1"
+    local dmg_path="$2"
+    local stage_path="$DEPLOY_PATH/dmg-stage"
+
+    rm -rf "$stage_path"
+    mkdir -p "$stage_path"
+    ditto "$app_path" "$stage_path/$APP_BUNDLE_NAME"
+    ln -s /Applications "$stage_path/Applications"
+
+    mkdir -p "$(dirname "$dmg_path")"
+    rm -f "$dmg_path"
+    hdiutil create \
+        -volname "$DMG_VOLUME_NAME" \
+        -srcfolder "$stage_path" \
+        -ov \
+        -format UDZO \
+        "$dmg_path"
+
+    rm -rf "$stage_path"
+}
+
 BUILD_PATH="$(resolve_target_path "$BUILD_DIR")"
 DEPLOY_PATH="$(resolve_target_path "$OUTPUT_DIR")"
 CACHE_PATH="$(resolve_target_path "$CACHE_DIR")"
 ARCHIVE_FULL_PATH="$(resolve_target_path "$ARCHIVE_PATH")"
+DMG_FULL_PATH="$(resolve_target_path "$DMG_PATH")"
 
 ensure_under_project "$BUILD_PATH" "BuildDir"
 ensure_under_project "$DEPLOY_PATH" "OutputDir"
 ensure_under_project "$CACHE_PATH" "CacheDir"
 ensure_under_project "$ARCHIVE_FULL_PATH" "ArchivePath"
+ensure_under_project "$DMG_FULL_PATH" "DmgPath"
 
 prepend_path "$QT_BIN_DIR"
 
@@ -269,15 +319,19 @@ fi
 
 sign_app "$DEPLOY_APP"
 
+create_dmg "$DEPLOY_APP" "$DMG_FULL_PATH"
+
 if [ "$NO_ARCHIVE" != "1" ]; then
     mkdir -p "$(dirname "$ARCHIVE_FULL_PATH")"
     rm -f "$ARCHIVE_FULL_PATH"
-    (cd "$DEPLOY_PATH" && ditto -c -k --sequesterRsrc --keepParent "$APP_BUNDLE_NAME" "$ARCHIVE_FULL_PATH")
+    (cd "$(dirname "$DMG_FULL_PATH")" && ditto -c -k --sequesterRsrc --keepParent "$(basename "$DMG_FULL_PATH")" "$ARCHIVE_FULL_PATH")
 fi
 
 echo
 echo "Deployment is ready:"
 echo "$DEPLOY_APP"
+echo "DMG is ready:"
+echo "$DMG_FULL_PATH"
 if [ "$SKIP_FFMPEG" != "1" ]; then
     echo "FFmpeg bundled:"
     echo "$DEPLOY_APP/Contents/MacOS/ffmpeg"

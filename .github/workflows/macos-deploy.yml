@@ -24,11 +24,13 @@ jobs:
           - package_arch: x64
             runner: macos-15-intel
             cmake_arch: x86_64
+            deployment_target: "13.0"
             ffmpeg_arch: amd64
             expected_arch: x86_64
           - package_arch: arm64
             runner: macos-15
             cmake_arch: arm64
+            deployment_target: "13.0"
             ffmpeg_arch: arm64
             expected_arch: arm64
 
@@ -37,9 +39,10 @@ jobs:
       CONFIGURATION: Release
       PACKAGE_ARCH: macos-${{ matrix.package_arch }}
       CMAKE_OSX_ARCHITECTURES: ${{ matrix.cmake_arch }}
-      CMAKE_OSX_DEPLOYMENT_TARGET: "13.0"
+      CMAKE_OSX_DEPLOYMENT_TARGET: ${{ matrix.deployment_target }}
       FFMPEG_ARCH: ${{ matrix.ffmpeg_arch }}
       EXPECTED_ARCH: ${{ matrix.expected_arch }}
+      EXPECTED_MIN_SYSTEM_VERSION: ${{ matrix.deployment_target }}
       ARCHIVE_PATH: deploy/BOSTONCREW-SAMPLER-macos-${{ matrix.package_arch }}.zip
       DMG_PATH: deploy/BOSTONCREW-SAMPLER-macos-${{ matrix.package_arch }}.dmg
       MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
@@ -51,7 +54,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -91,14 +94,13 @@ jobs:
         id: upload_artifact_1
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         continue-on-error: true
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: BOSTONCREW-SAMPLER-macos-${{ matrix.package_arch }}
           path: ${{ env.ARCHIVE_PATH }}
           if-no-files-found: error
           compression-level: 0
           overwrite: true
-          archive: false
 
       - name: Wait before artifact upload retry 2
         if: ${{ !startsWith(github.ref, 'refs/tags/') && steps.upload_artifact_1.outcome == 'failure' }}
@@ -109,14 +111,13 @@ jobs:
         id: upload_artifact_2
         if: ${{ !startsWith(github.ref, 'refs/tags/') && steps.upload_artifact_1.outcome == 'failure' }}
         continue-on-error: true
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: BOSTONCREW-SAMPLER-macos-${{ matrix.package_arch }}
           path: ${{ env.ARCHIVE_PATH }}
           if-no-files-found: error
           compression-level: 0
           overwrite: true
-          archive: false
 
       - name: Wait before artifact upload retry 3
         if: ${{ !startsWith(github.ref, 'refs/tags/') && steps.upload_artifact_1.outcome == 'failure' && steps.upload_artifact_2.outcome == 'failure' }}
@@ -125,14 +126,13 @@ jobs:
 
       - name: Upload macOS artifact (attempt 3)
         if: ${{ !startsWith(github.ref, 'refs/tags/') && steps.upload_artifact_1.outcome == 'failure' && steps.upload_artifact_2.outcome == 'failure' }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: BOSTONCREW-SAMPLER-macos-${{ matrix.package_arch }}
           path: ${{ env.ARCHIVE_PATH }}
           if-no-files-found: error
           compression-level: 0
           overwrite: true
-          archive: false
 
       - name: Publish tag release asset
         if: startsWith(github.ref, 'refs/tags/')

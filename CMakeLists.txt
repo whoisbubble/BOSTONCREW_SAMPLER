@@ -6,6 +6,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC_COMPILER_PREDEFINES OFF)
 
 set(MACOS_APP_ICON "" CACHE FILEPATH "Path to a macOS .icns bundle icon")
+set(APP_DISPLAY_NAME "BOSTONCREW SAMPLER")
+set(APP_EXECUTABLE_NAME "BOSTONCREW SAMPLER")
+set(APP_BUNDLE_ID "ru.bostoncrew.sampler")
+set(APP_COPYRIGHT "Copyright (c) 2026 BOSTONCREW")
+
+if(APPLE AND NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "13.0" CACHE STRING "Minimum macOS deployment target" FORCE)
+endif()
 
 find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 Multimedia Network Widgets Test)
 
@@ -22,6 +30,10 @@ if(APPLE AND MACOS_APP_ICON AND EXISTS "${MACOS_APP_ICON}")
     set_source_files_properties("${APP_ICON_RESOURCE_MACOS}" PROPERTIES
         MACOSX_PACKAGE_LOCATION "Resources"
     )
+endif()
+
+if(APPLE)
+    configure_file(cmake/Info.plist.in "${CMAKE_CURRENT_BINARY_DIR}/Info.plist" @ONLY)
 endif()
 
 qt_add_executable(appCPlusEventSampler
@@ -101,7 +113,7 @@ qt_add_resources(appCPlusEventSampler app_resources
 # If you are developing for iOS or macOS you should consider setting an
 # explicit, fixed bundle identifier manually though.
 set_target_properties(appCPlusEventSampler PROPERTIES
-    MACOSX_BUNDLE_GUI_IDENTIFIER ru.bostoncrew.sampler
+    MACOSX_BUNDLE_GUI_IDENTIFIER ${APP_BUNDLE_ID}
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
     MACOSX_BUNDLE TRUE
@@ -110,8 +122,9 @@ set_target_properties(appCPlusEventSampler PROPERTIES
 
 if(APPLE)
     set_target_properties(appCPlusEventSampler PROPERTIES
-        OUTPUT_NAME "BOSTONCREW SAMPLER"
-        MACOSX_BUNDLE_BUNDLE_NAME "BOSTONCREW SAMPLER"
+        OUTPUT_NAME ${APP_EXECUTABLE_NAME}
+        MACOSX_BUNDLE_BUNDLE_NAME ${APP_DISPLAY_NAME}
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/Info.plist"
     )
     if(APP_ICON_RESOURCE_MACOS)
         set_target_properties(appCPlusEventSampler PROPERTIES

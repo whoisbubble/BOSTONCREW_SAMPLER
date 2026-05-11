@@ -7,6 +7,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 ARCHIVE_PATH="${ARCHIVE_PATH:-}"
 DMG_PATH="${DMG_PATH:-}"
 EXPECTED_ARCH="${EXPECTED_ARCH:-}"
+EXPECTED_MIN_SYSTEM_VERSION="${EXPECTED_MIN_SYSTEM_VERSION:-}"
 EXPECT_NOTARIZED="${EXPECT_NOTARIZED:-0}"
 APP_BUNDLE_NAME="${APP_BUNDLE_NAME:-BOSTONCREW SAMPLER.app}"
 APP_EXECUTABLE_NAME="${APP_EXECUTABLE_NAME:-BOSTONCREW SAMPLER}"
@@ -73,11 +74,29 @@ APP_PATH="$MOUNT_DIR/$APP_BUNDLE_NAME"
 EXECUTABLE_PATH="$APP_PATH/Contents/MacOS/$APP_EXECUTABLE_NAME"
 FFMPEG_PATH="$APP_PATH/Contents/MacOS/ffmpeg/ffmpeg"
 FFPROBE_PATH="$APP_PATH/Contents/MacOS/ffmpeg/ffprobe"
+INFO_PLIST_PATH="$APP_PATH/Contents/Info.plist"
 
 test -d "$APP_PATH"
 test -x "$EXECUTABLE_PATH"
 test -x "$FFMPEG_PATH"
 test -x "$FFPROBE_PATH"
+test -f "$INFO_PLIST_PATH"
+
+plutil -lint "$INFO_PLIST_PATH"
+PLIST_EXECUTABLE="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$INFO_PLIST_PATH")"
+PLIST_MIN_SYSTEM="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$INFO_PLIST_PATH")"
+echo "CFBundleExecutable: $PLIST_EXECUTABLE"
+echo "LSMinimumSystemVersion: $PLIST_MIN_SYSTEM"
+
+if [ "$PLIST_EXECUTABLE" != "$APP_EXECUTABLE_NAME" ]; then
+    echo "CFBundleExecutable does not match app executable name." >&2
+    exit 1
+fi
+
+if [ -n "$EXPECTED_MIN_SYSTEM_VERSION" ] && [ "$PLIST_MIN_SYSTEM" != "$EXPECTED_MIN_SYSTEM_VERSION" ]; then
+    echo "LSMinimumSystemVersion expected $EXPECTED_MIN_SYSTEM_VERSION, got $PLIST_MIN_SYSTEM." >&2
+    exit 1
+fi
 
 if [ -n "$EXPECTED_ARCH" ]; then
     require_arch "$EXECUTABLE_PATH" "$EXPECTED_ARCH"

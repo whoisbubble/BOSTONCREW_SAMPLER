@@ -118,6 +118,7 @@ generate_macos_icon() {
 
 find_built_app() {
     local candidates=(
+        "$BUILD_PATH/BOSTONCREW-SAMPLER.app"
         "$BUILD_PATH/BOSTONCREW SAMPLER.app"
         "$BUILD_PATH/appCPlusEventSampler.app"
     )

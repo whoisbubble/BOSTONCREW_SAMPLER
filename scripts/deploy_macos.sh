@@ -27,6 +27,11 @@ SKIP_FFMPEG="${SKIP_FFMPEG:-0}"
 NO_ARCHIVE="${NO_ARCHIVE:-0}"
 RUN_TESTS="${RUN_TESTS:-1}"
 MACOS_CODESIGN_IDENTITY="${MACOS_CODESIGN_IDENTITY:-}"
+MACOS_DMG_CODESIGN_IDENTITY="${MACOS_DMG_CODESIGN_IDENTITY:-$MACOS_CODESIGN_IDENTITY}"
+MACOS_NOTARIZE="${MACOS_NOTARIZE:-auto}"
+APPLE_ID="${APPLE_ID:-}"
+APPLE_TEAM_ID="${APPLE_TEAM_ID:-}"
+APPLE_APP_SPECIFIC_PASSWORD="${APPLE_APP_SPECIFIC_PASSWORD:-}"
 
 resolve_target_path() {
     local input="$1"
@@ -235,6 +240,55 @@ sign_app() {
     fi
 }
 
+sign_dmg() {
+    local dmg_path="$1"
+    if [ -z "$MACOS_DMG_CODESIGN_IDENTITY" ] || ! command -v codesign >/dev/null 2>&1; then
+        return 0
+    fi
+
+    codesign --force --timestamp --sign "$MACOS_DMG_CODESIGN_IDENTITY" "$dmg_path"
+}
+
+notarization_enabled() {
+    if [ "$MACOS_NOTARIZE" = "1" ]; then
+        return 0
+    fi
+    if [ "$MACOS_NOTARIZE" = "0" ]; then
+        return 1
+    fi
+
+    [ -n "$APPLE_ID" ] \
+        && [ -n "$APPLE_TEAM_ID" ] \
+        && [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ] \
+        && [ -n "$MACOS_CODESIGN_IDENTITY" ]
+}
+
+notarize_dmg() {
+    local dmg_path="$1"
+    if ! notarization_enabled; then
+        echo "Notarization skipped. Set Apple Developer ID secrets for public macOS distribution."
+        return 0
+    fi
+
+    if [ -z "$APPLE_ID" ] || [ -z "$APPLE_TEAM_ID" ] || [ -z "$APPLE_APP_SPECIFIC_PASSWORD" ]; then
+        echo "APPLE_ID, APPLE_TEAM_ID, and APPLE_APP_SPECIFIC_PASSWORD are required for notarization." >&2
+        exit 1
+    fi
+
+    if [ -z "$MACOS_CODESIGN_IDENTITY" ]; then
+        echo "MACOS_CODESIGN_IDENTITY is required for notarization." >&2
+        exit 1
+    fi
+
+    xcrun notarytool submit "$dmg_path" \
+        --apple-id "$APPLE_ID" \
+        --team-id "$APPLE_TEAM_ID" \
+        --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+        --wait
+    xcrun stapler staple "$dmg_path"
+    xcrun stapler validate "$dmg_path"
+}
+
 create_dmg() {
     local app_path="$1"
     local dmg_path="$2"
@@ -320,6 +374,8 @@ fi
 sign_app "$DEPLOY_APP"
 
 create_dmg "$DEPLOY_APP" "$DMG_FULL_PATH"
+sign_dmg "$DMG_FULL_PATH"
+notarize_dmg "$DMG_FULL_PATH"
 
 if [ "$NO_ARCHIVE" != "1" ]; then
     mkdir -p "$(dirname "$ARCHIVE_FULL_PATH")"

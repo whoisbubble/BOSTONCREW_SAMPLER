@@ -7,6 +7,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 ARCHIVE_PATH="${ARCHIVE_PATH:-}"
 DMG_PATH="${DMG_PATH:-}"
 EXPECTED_ARCH="${EXPECTED_ARCH:-}"
+EXPECT_NOTARIZED="${EXPECT_NOTARIZED:-0}"
 APP_BUNDLE_NAME="${APP_BUNDLE_NAME:-BOSTONCREW SAMPLER.app}"
 APP_EXECUTABLE_NAME="${APP_EXECUTABLE_NAME:-BOSTONCREW SAMPLER}"
 
@@ -61,6 +62,11 @@ if [ -z "$DMG_FULL_PATH" ] || [ ! -f "$DMG_FULL_PATH" ]; then
 fi
 
 hdiutil verify "$DMG_FULL_PATH"
+if [ "$EXPECT_NOTARIZED" = "1" ]; then
+    xcrun stapler validate "$DMG_FULL_PATH"
+    spctl --assess --type open --context context:primary-signature --verbose=4 "$DMG_FULL_PATH"
+fi
+
 hdiutil attach "$DMG_FULL_PATH" -mountpoint "$MOUNT_DIR" -nobrowse -readonly
 
 APP_PATH="$MOUNT_DIR/$APP_BUNDLE_NAME"

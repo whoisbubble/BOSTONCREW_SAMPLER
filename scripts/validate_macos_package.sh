@@ -104,10 +104,16 @@ if [ -n "$EXPECTED_ARCH" ]; then
     require_arch "$FFPROBE_PATH" "$EXPECTED_ARCH"
 fi
 
-codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 if [ "$EXPECT_NOTARIZED" = "1" ]; then
+    codesign --verify --deep --strict --verbose=2 "$APP_PATH"
     codesign --display --verbose=4 "$APP_PATH"
     spctl --assess --type execute --verbose=4 "$APP_PATH"
+else
+    if codesign --verify --deep --strict --verbose=2 "$APP_PATH"; then
+        echo "Unsigned-mode package has a verifiable local code signature."
+    else
+        echo "Unsigned-mode package is not code-signed. This is expected without Apple Developer ID."
+    fi
 fi
 
 "$FFMPEG_PATH" -version

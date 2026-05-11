@@ -43,8 +43,8 @@ jobs:
       FFMPEG_ARCH: ${{ matrix.ffmpeg_arch }}
       EXPECTED_ARCH: ${{ matrix.expected_arch }}
       EXPECTED_MIN_SYSTEM_VERSION: ${{ matrix.deployment_target }}
-      MACOS_NOTARIZE: ${{ github.event_name == 'pull_request' && '0' || '1' }}
-      EXPECT_NOTARIZED: ${{ github.event_name == 'pull_request' && '0' || '1' }}
+      MACOS_NOTARIZE: auto
+      EXPECT_NOTARIZED: ${{ secrets.MACOS_CERTIFICATE_BASE64 != '' && secrets.MACOS_CERTIFICATE_PASSWORD != '' && secrets.MACOS_CODESIGN_IDENTITY != '' && secrets.APPLE_ID != '' && secrets.APPLE_TEAM_ID != '' && secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && '1' || '0' }}
       ARCHIVE_PATH: deploy/BOSTONCREW-SAMPLER-macos-${{ matrix.package_arch }}.zip
       DMG_PATH: deploy/BOSTONCREW-SAMPLER-macos-${{ matrix.package_arch }}.dmg
       MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
@@ -58,25 +58,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Check Apple signing secrets
-        if: env.MACOS_NOTARIZE == '1'
+      - name: Report macOS signing mode
         shell: bash
         run: |
-          missing=0
-          for name in \
-            MACOS_CERTIFICATE_BASE64 \
-            MACOS_CERTIFICATE_PASSWORD \
-            MACOS_CODESIGN_IDENTITY \
-            APPLE_ID \
-            APPLE_TEAM_ID \
-            APPLE_APP_SPECIFIC_PASSWORD
-          do
-            if [ -z "${!name}" ]; then
-              echo "::error::$name is required for a public macOS DMG that opens without Gatekeeper damage warnings."
-              missing=1
-            fi
-          done
-          exit "$missing"
+          if [ "$EXPECT_NOTARIZED" = "1" ]; then
+            echo "Apple Developer ID secrets are configured. The DMG will be signed and notarized."
+          else
+            echo "::warning::Apple Developer ID secrets are not configured. Building an unsigned macOS package with a first-run quarantine helper."
+          fi
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -114,7 +103,7 @@ jobs:
 
       - name: Upload macOS artifact (attempt 1)
         id: upload_artifact_1
-        if: ${{ !startsWith(github.ref, 'refs/tags/') && env.EXPECT_NOTARIZED == '1' }}
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -125,13 +114,13 @@ jobs:
           overwrite: true
 
       - name: Wait before artifact upload retry 2
-        if: ${{ !startsWith(github.ref, 'refs/tags/') && env.EXPECT_NOTARIZED == '1' && steps.upload_artifact_1.outcome == 'failure' }}
+        if: ${{ !startsWith(github.ref, 'refs/tags/') && steps.upload_artifact_1.outcome == 'failure' }}
         shell: bash
         run: sleep 30
 
       - name: Upload macOS artifact (attempt 2)
         id: upload_artifact_2
-        if: ${{ !startsWith(github.ref, 'refs/tags/') && env.EXPECT_NOTARIZED == '1' && steps.upload_artifact_1.outcome == 'failure' }}
+        if: ${{ !startsWith(github.ref, 'refs/tags/') && steps.upload_artifact_1.outcome == 'failure' }}
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -142,12 +131,12 @@ jobs:
           overwrite: true
 
       - name: Wait before artifact upload retry 3
-        if: ${{ !startsWith(github.ref, 'refs/tags/') && env.EXPECT_NOTARIZED == '1' && steps.upload_artifact_1.outcome == 'failure' && steps.upload_artifact_2.outcome == 'failure' }}
+        if: ${{ !startsWith(github.ref, 'refs/tags/') && steps.upload_artifact_1.outcome == 'failure' && steps.upload_artifact_2.outcome == 'failure' }}
         shell: bash
         run: sleep 60
 
       - name: Upload macOS artifact (attempt 3)
-        if: ${{ !startsWith(github.ref, 'refs/tags/') && env.EXPECT_NOTARIZED == '1' && steps.upload_artifact_1.outcome == 'failure' && steps.upload_artifact_2.outcome == 'failure' }}
+        if: ${{ !startsWith(github.ref, 'refs/tags/') && steps.upload_artifact_1.outcome == 'failure' && steps.upload_artifact_2.outcome == 'failure' }}
         uses: actions/upload-artifact@v4
         with:
           name: BOSTONCREW-SAMPLER-macos-${{ matrix.package_arch }}

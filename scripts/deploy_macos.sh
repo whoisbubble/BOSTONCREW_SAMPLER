@@ -30,6 +30,8 @@ MACOS_CODESIGN_IDENTITY="${MACOS_CODESIGN_IDENTITY:-}"
 MACOS_DMG_CODESIGN_IDENTITY="${MACOS_DMG_CODESIGN_IDENTITY:-$MACOS_CODESIGN_IDENTITY}"
 MACOS_ENTITLEMENTS="${MACOS_ENTITLEMENTS:-$PROJECT_ROOT/cmake/macos-entitlements.plist}"
 MACOS_NOTARIZE="${MACOS_NOTARIZE:-auto}"
+UNSIGNED_HELPER_NAME="${UNSIGNED_HELPER_NAME:-OPEN_UNSIGNED_MAC_BUILD.command}"
+UNSIGNED_README_NAME="${UNSIGNED_README_NAME:-README-macOS-unsigned.txt}"
 APPLE_ID="${APPLE_ID:-}"
 APPLE_TEAM_ID="${APPLE_TEAM_ID:-}"
 APPLE_APP_SPECIFIC_PASSWORD="${APPLE_APP_SPECIFIC_PASSWORD:-}"
@@ -266,7 +268,7 @@ sign_app() {
         fi
         codesign "${sign_args[@]}" "$app_path"
     else
-        codesign --force --deep --sign - "$app_path"
+        echo "No Developer ID identity configured. Leaving app unsigned for Gatekeeper's Open Anyway flow."
     fi
 }
 
@@ -341,6 +343,79 @@ create_dmg() {
     rm -rf "$stage_path"
 }
 
+write_unsigned_distribution_files() {
+    local stage_path="$1"
+    local helper_path="$stage_path/$UNSIGNED_HELPER_NAME"
+    local readme_path="$stage_path/$UNSIGNED_README_NAME"
+
+    cat > "$helper_path" <<'EOF'
+#!/bin/bash
+set -euo pipefail
+
+cd "$(dirname "$0")"
+
+dmg_path="$(find . -maxdepth 1 -type f -name '*.dmg' | sort | head -n 1)"
+if [ -z "$dmg_path" ]; then
+    echo "DMG was not found next to this helper."
+    read -r -p "Press Enter to close..."
+    exit 1
+fi
+
+echo "Removing macOS quarantine from: $dmg_path"
+xattr -dr com.apple.quarantine "$dmg_path" 2>/dev/null || true
+
+echo "Opening DMG. Drag BOSTONCREW SAMPLER.app to Applications, then open it from Applications."
+open "$dmg_path"
+EOF
+    chmod +x "$helper_path"
+
+    cat > "$readme_path" <<EOF
+BOSTONCREW SAMPLER macOS unsigned build
+
+This package is not signed with Apple Developer ID and is not notarized by Apple.
+Because of that, macOS Gatekeeper can block the first launch and ask you to allow an app from an unidentified developer.
+
+Recommended first launch:
+
+1. Open the DMG.
+2. Drag BOSTONCREW SAMPLER.app to Applications.
+3. Try to open BOSTONCREW SAMPLER.app.
+4. If macOS blocks it, open System Settings -> Privacy & Security and click Open Anyway.
+
+If macOS says the app is damaged instead of showing the Open Anyway flow:
+
+1. Keep $UNSIGNED_HELPER_NAME next to the DMG file.
+2. Double-click $UNSIGNED_HELPER_NAME.
+3. Open the DMG again and drag BOSTONCREW SAMPLER.app to Applications.
+
+Manual Terminal command if needed:
+
+xattr -dr com.apple.quarantine "BOSTONCREW-SAMPLER-${PACKAGE_ARCH}.dmg"
+open "BOSTONCREW-SAMPLER-${PACKAGE_ARCH}.dmg"
+
+The clean public macOS distribution path is Apple Developer ID signing + notarization.
+EOF
+}
+
+create_archive() {
+    local dmg_path="$1"
+    local archive_path="$2"
+    local stage_path="$DEPLOY_PATH/archive-stage"
+
+    rm -rf "$stage_path"
+    mkdir -p "$stage_path"
+    ditto "$dmg_path" "$stage_path/$(basename "$dmg_path")"
+
+    if ! notarization_enabled; then
+        write_unsigned_distribution_files "$stage_path"
+    fi
+
+    mkdir -p "$(dirname "$archive_path")"
+    rm -f "$archive_path"
+    (cd "$stage_path" && ditto -c -k --sequesterRsrc . "$archive_path")
+    rm -rf "$stage_path"
+}
+
 BUILD_PATH="$(resolve_target_path "$BUILD_DIR")"
 DEPLOY_PATH="$(resolve_target_path "$OUTPUT_DIR")"
 CACHE_PATH="$(resolve_target_path "$CACHE_DIR")"
@@ -409,9 +484,7 @@ sign_dmg "$DMG_FULL_PATH"
 notarize_dmg "$DMG_FULL_PATH"
 
 if [ "$NO_ARCHIVE" != "1" ]; then
-    mkdir -p "$(dirname "$ARCHIVE_FULL_PATH")"
-    rm -f "$ARCHIVE_FULL_PATH"
-    (cd "$(dirname "$DMG_FULL_PATH")" && ditto -c -k --sequesterRsrc --keepParent "$(basename "$DMG_FULL_PATH")" "$ARCHIVE_FULL_PATH")
+    create_archive "$DMG_FULL_PATH" "$ARCHIVE_FULL_PATH"
 fi
 
 echo

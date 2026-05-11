@@ -105,6 +105,11 @@ if [ -n "$EXPECTED_ARCH" ]; then
 fi
 
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+if [ "$EXPECT_NOTARIZED" = "1" ]; then
+    codesign --display --verbose=4 "$APP_PATH"
+    spctl --assess --type execute --verbose=4 "$APP_PATH"
+fi
+
 "$FFMPEG_PATH" -version
 "$FFPROBE_PATH" -version
 

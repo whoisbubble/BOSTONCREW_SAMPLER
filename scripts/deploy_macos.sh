@@ -28,6 +28,7 @@ NO_ARCHIVE="${NO_ARCHIVE:-0}"
 RUN_TESTS="${RUN_TESTS:-1}"
 MACOS_CODESIGN_IDENTITY="${MACOS_CODESIGN_IDENTITY:-}"
 MACOS_DMG_CODESIGN_IDENTITY="${MACOS_DMG_CODESIGN_IDENTITY:-$MACOS_CODESIGN_IDENTITY}"
+MACOS_ENTITLEMENTS="${MACOS_ENTITLEMENTS:-$PROJECT_ROOT/cmake/macos-entitlements.plist}"
 MACOS_NOTARIZE="${MACOS_NOTARIZE:-auto}"
 APPLE_ID="${APPLE_ID:-}"
 APPLE_TEAM_ID="${APPLE_TEAM_ID:-}"
@@ -228,6 +229,24 @@ copy_ffmpeg_to_app() {
     chmod +x "$target_dir/ffmpeg" "$target_dir/ffprobe"
 }
 
+require_notarization_inputs() {
+    if [ "$MACOS_NOTARIZE" != "1" ]; then
+        return 0
+    fi
+
+    local missing=0
+    for name in MACOS_CODESIGN_IDENTITY APPLE_ID APPLE_TEAM_ID APPLE_APP_SPECIFIC_PASSWORD; do
+        if [ -z "${!name:-}" ]; then
+            echo "$name is required when MACOS_NOTARIZE=1." >&2
+            missing=1
+        fi
+    done
+
+    if [ "$missing" != "0" ]; then
+        exit 1
+    fi
+}
+
 sign_app() {
     local app_path="$1"
     if ! command -v codesign >/dev/null 2>&1; then
@@ -235,7 +254,17 @@ sign_app() {
     fi
 
     if [ -n "$MACOS_CODESIGN_IDENTITY" ]; then
-        codesign --force --deep --options runtime --timestamp --sign "$MACOS_CODESIGN_IDENTITY" "$app_path"
+        local sign_args=(
+            --force
+            --deep
+            --options runtime
+            --timestamp
+            --sign "$MACOS_CODESIGN_IDENTITY"
+        )
+        if [ -f "$MACOS_ENTITLEMENTS" ]; then
+            sign_args+=(--entitlements "$MACOS_ENTITLEMENTS")
+        fi
+        codesign "${sign_args[@]}" "$app_path"
     else
         codesign --force --deep --sign - "$app_path"
     fi
@@ -325,6 +354,7 @@ ensure_under_project "$ARCHIVE_FULL_PATH" "ArchivePath"
 ensure_under_project "$DMG_FULL_PATH" "DmgPath"
 
 prepend_path "$QT_BIN_DIR"
+require_notarization_inputs
 
 mkdir -p "$BUILD_PATH"
 MACOS_ICON="$(generate_macos_icon || true)"

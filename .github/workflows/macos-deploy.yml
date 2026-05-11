@@ -43,6 +43,8 @@ jobs:
       FFMPEG_ARCH: ${{ matrix.ffmpeg_arch }}
       EXPECTED_ARCH: ${{ matrix.expected_arch }}
       EXPECTED_MIN_SYSTEM_VERSION: ${{ matrix.deployment_target }}
+      MACOS_NOTARIZE: ${{ github.event_name == 'pull_request' && '0' || '1' }}
+      EXPECT_NOTARIZED: ${{ github.event_name == 'pull_request' && '0' || '1' }}
       ARCHIVE_PATH: deploy/BOSTONCREW-SAMPLER-macos-${{ matrix.package_arch }}.zip
       DMG_PATH: deploy/BOSTONCREW-SAMPLER-macos-${{ matrix.package_arch }}.dmg
       MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
@@ -55,6 +57,26 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Check Apple signing secrets
+        if: env.MACOS_NOTARIZE == '1'
+        shell: bash
+        run: |
+          missing=0
+          for name in \
+            MACOS_CERTIFICATE_BASE64 \
+            MACOS_CERTIFICATE_PASSWORD \
+            MACOS_CODESIGN_IDENTITY \
+            APPLE_ID \
+            APPLE_TEAM_ID \
+            APPLE_APP_SPECIFIC_PASSWORD
+          do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is required for a public macOS DMG that opens without Gatekeeper damage warnings."
+              missing=1
+            fi
+          done
+          exit "$missing"
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -92,7 +114,7 @@ jobs:
 
       - name: Upload macOS artifact (attempt 1)
         id: upload_artifact_1
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        if: ${{ !startsWith(github.ref, 'refs/tags/') && env.EXPECT_NOTARIZED == '1' }}
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -103,13 +125,13 @@ jobs:
           overwrite: true
 
       - name: Wait before artifact upload retry 2
-        if: ${{ !startsWith(github.ref, 'refs/tags/') && steps.upload_artifact_1.outcome == 'failure' }}
+        if: ${{ !startsWith(github.ref, 'refs/tags/') && env.EXPECT_NOTARIZED == '1' && steps.upload_artifact_1.outcome == 'failure' }}
         shell: bash
         run: sleep 30
 
       - name: Upload macOS artifact (attempt 2)
         id: upload_artifact_2
-        if: ${{ !startsWith(github.ref, 'refs/tags/') && steps.upload_artifact_1.outcome == 'failure' }}
+        if: ${{ !startsWith(github.ref, 'refs/tags/') && env.EXPECT_NOTARIZED == '1' && steps.upload_artifact_1.outcome == 'failure' }}
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -120,12 +142,12 @@ jobs:
           overwrite: true
 
       - name: Wait before artifact upload retry 3
-        if: ${{ !startsWith(github.ref, 'refs/tags/') && steps.upload_artifact_1.outcome == 'failure' && steps.upload_artifact_2.outcome == 'failure' }}
+        if: ${{ !startsWith(github.ref, 'refs/tags/') && env.EXPECT_NOTARIZED == '1' && steps.upload_artifact_1.outcome == 'failure' && steps.upload_artifact_2.outcome == 'failure' }}
         shell: bash
         run: sleep 60
 
       - name: Upload macOS artifact (attempt 3)
-        if: ${{ !startsWith(github.ref, 'refs/tags/') && steps.upload_artifact_1.outcome == 'failure' && steps.upload_artifact_2.outcome == 'failure' }}
+        if: ${{ !startsWith(github.ref, 'refs/tags/') && env.EXPECT_NOTARIZED == '1' && steps.upload_artifact_1.outcome == 'failure' && steps.upload_artifact_2.outcome == 'failure' }}
         uses: actions/upload-artifact@v4
         with:
           name: BOSTONCREW-SAMPLER-macos-${{ matrix.package_arch }}

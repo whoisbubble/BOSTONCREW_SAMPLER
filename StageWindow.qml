@@ -272,7 +272,6 @@ Window {
             audioOutput: AudioOutput {
                 muted: !surface.active
             }
-            autoPlay: false
             loops: surface.repeats ? MediaPlayer.Infinite : 1
 
             onSourceChanged: {

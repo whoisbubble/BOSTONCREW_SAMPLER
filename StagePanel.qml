@@ -70,7 +70,6 @@ AppPanel {
             source: panel.activePreviewVideoUrl
             videoOutput: previewVideo
             audioOutput: AudioOutput { muted: true }
-            autoPlay: false
             loops: panel.backend.currentMediaRepeats ? MediaPlayer.Infinite : 1
             onSourceChanged: {
                 panel.previewVideoReady = false

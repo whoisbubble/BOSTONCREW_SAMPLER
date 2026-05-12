@@ -15,7 +15,7 @@ if(APPLE AND NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum macOS deployment target" FORCE)
 endif()
 
-find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 Multimedia Network Widgets Test)
+find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 Multimedia Network Widgets Svg Test)
 
 qt_standard_project_setup(REQUIRES 6.5)
 
@@ -134,7 +134,7 @@ if(APPLE)
 endif()
 
 target_link_libraries(appCPlusEventSampler
-    PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia Qt6::Network Qt6::Widgets
+    PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia Qt6::Network Qt6::Widgets Qt6::Svg
 )
 
 if(WIN32)

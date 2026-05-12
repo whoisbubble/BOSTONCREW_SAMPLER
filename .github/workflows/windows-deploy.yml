@@ -1,0 +1,131 @@
+name: Windows Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  package-windows:
+    name: Package Windows x64
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    env:
+      QT_VERSION: "6.10.2"
+      CONFIGURATION: Release
+      PORTABLE_ARCHIVE_PATH: deploy\BOSTONCREW-SAMPLER-windows-portable.zip
+      INSTALLER_PATH: deploy\BOSTONCREW-SAMPLER-windows-setup.exe
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          modules: qtmultimedia qtsvg
+          cache: true
+
+      - name: Configure
+        shell: pwsh
+        run: cmake -S . -B build-windows -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$env:QT_ROOT_DIR"
+
+      - name: Build
+        shell: pwsh
+        run: cmake --build build-windows --config $env:CONFIGURATION --parallel
+
+      - name: Test
+        shell: pwsh
+        run: ctest --test-dir build-windows --build-config $env:CONFIGURATION --output-on-failure
+
+      - name: Deploy portable app
+        shell: pwsh
+        run: |
+          $qtBin = Join-Path $env:QT_ROOT_DIR "bin"
+          .\scripts\deploy_windows.ps1 `
+            -BuildDir build-windows `
+            -Configuration $env:CONFIGURATION `
+            -QtBinDir $qtBin `
+            -ArchivePath $env:PORTABLE_ARCHIVE_PATH
+
+      - name: Validate Windows deploy
+        shell: pwsh
+        run: |
+          $exe = "deploy\windows\BOSTONCREW SAMPLER.exe"
+          $qsvg = "deploy\windows\imageformats\qsvg.dll"
+          $ffmpeg = "deploy\windows\ffmpeg\ffmpeg.exe"
+          $ffprobe = "deploy\windows\ffmpeg\ffprobe.exe"
+          foreach ($path in @($exe, $qsvg, $ffmpeg, $ffprobe, $env:PORTABLE_ARCHIVE_PATH)) {
+            if (!(Test-Path $path)) {
+              throw "Required deploy file is missing: $path"
+            }
+          }
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $iscc)) {
+            $cmd = Get-Command iscc.exe -ErrorAction SilentlyContinue
+            if ($cmd) {
+              $iscc = $cmd.Source
+            }
+          }
+          if (!(Test-Path $iscc)) {
+            throw "ISCC.exe was not found after installing Inno Setup."
+          }
+          & $iscc installer\bostoncrew_sampler.iss
+
+      - name: Validate installer
+        shell: pwsh
+        run: |
+          if (!(Test-Path $env:INSTALLER_PATH)) {
+            throw "Installer was not created: $env:INSTALLER_PATH"
+          }
+
+      - name: Upload Windows artifact
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: BOSTONCREW-SAMPLER-windows-x64
+          path: |
+            ${{ env.INSTALLER_PATH }}
+            ${{ env.PORTABLE_ARCHIVE_PATH }}
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: true
+
+      - name: Publish tag release assets
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            gh release view "$env:GITHUB_REF_NAME" 2>$null
+            if ($LASTEXITCODE -eq 0) {
+              gh release upload "$env:GITHUB_REF_NAME" $env:INSTALLER_PATH $env:PORTABLE_ARCHIVE_PATH --clobber
+              if ($LASTEXITCODE -eq 0) { exit 0 }
+            } else {
+              gh release create "$env:GITHUB_REF_NAME" $env:INSTALLER_PATH $env:PORTABLE_ARCHIVE_PATH --title "$env:GITHUB_REF_NAME" --notes "Windows build"
+              if ($LASTEXITCODE -eq 0) { exit 0 }
+            }
+            Start-Sleep -Seconds ($attempt * 30)
+          }
+          exit 1

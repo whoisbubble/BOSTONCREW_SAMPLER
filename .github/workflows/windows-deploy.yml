@@ -35,7 +35,7 @@ jobs:
           host: windows
           target: desktop
           arch: win64_msvc2022_64
-          modules: qtmultimedia qtsvg
+          modules: qtmultimedia
           cache: true
 
       - name: Configure

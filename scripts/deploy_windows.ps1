@@ -58,6 +58,20 @@ function Add-ToPath([string]$PathToAdd) {
     $env:PATH = "$full;$env:PATH"
 }
 
+function Invoke-NativeCommand {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath,
+        [Parameter(ValueFromRemainingArguments = $true)]
+        [string[]]$Arguments
+    )
+
+    & $FilePath @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "Command failed with exit code ${LASTEXITCODE}: $FilePath $($Arguments -join ' ')"
+    }
+}
+
 function Add-DefaultQtToolPaths([string]$RequestedQtBinDir) {
     if ($RequestedQtBinDir -ne "") {
         Add-ToPath $RequestedQtBinDir
@@ -256,9 +270,9 @@ Add-DefaultQtToolPaths $QtBinDir
 $cmake = Find-Cmake $BuildPath
 New-Item -ItemType Directory -Force -Path $BuildPath | Out-Null
 
-& $cmake -S $ProjectRoot -B $BuildPath -DCMAKE_BUILD_TYPE=$Configuration
+Invoke-NativeCommand $cmake -S $ProjectRoot -B $BuildPath "-DCMAKE_BUILD_TYPE=$Configuration"
 Add-BuildToolPaths $BuildPath
-& $cmake --build $BuildPath --config $Configuration
+Invoke-NativeCommand $cmake --build $BuildPath --config $Configuration
 
 $exeName = "appCPlusEventSampler.exe"
 $exe = Get-ChildItem -Path $BuildPath -Filter $exeName -Recurse -File |
@@ -295,7 +309,7 @@ if ($Configuration -match "Debug") {
     $deployMode = "--debug"
 }
 
-& $windeployqt $deployMode --qmldir $ProjectRoot --multimedia --compiler-runtime $targetExe
+Invoke-NativeCommand $windeployqt $deployMode --qmldir $ProjectRoot --multimedia --compiler-runtime $targetExe
 
 if (-not $SkipFfmpeg) {
     $ffmpegTools = Resolve-FfmpegTools $FfmpegDir $FfmpegUrl $CachePath

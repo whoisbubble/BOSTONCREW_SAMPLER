@@ -108,9 +108,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: BOSTONCREW-SAMPLER-macos-${{ matrix.package_arch }}
-          path: |
-            ${{ env.DMG_PATH }}
-            deploy/macos/BOSTONCREW-SAMPLER.app
+          path: ${{ env.DMG_PATH }}
           if-no-files-found: error
           compression-level: 0
           overwrite: true
@@ -127,9 +125,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: BOSTONCREW-SAMPLER-macos-${{ matrix.package_arch }}
-          path: |
-            ${{ env.DMG_PATH }}
-            deploy/macos/BOSTONCREW-SAMPLER.app
+          path: ${{ env.DMG_PATH }}
           if-no-files-found: error
           compression-level: 0
           overwrite: true
@@ -144,9 +140,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: BOSTONCREW-SAMPLER-macos-${{ matrix.package_arch }}
-          path: |
-            ${{ env.DMG_PATH }}
-            deploy/macos/BOSTONCREW-SAMPLER.app
+          path: ${{ env.DMG_PATH }}
           if-no-files-found: error
           compression-level: 0
           overwrite: true
@@ -168,4 +162,57 @@ jobs:
             fi
             sleep $((attempt * 30))
           done
+          exit 1
+
+  publish-latest-macos-dmgs:
+    name: Publish latest macOS DMGs
+    needs: package-macos
+    if: ${{ github.event_name != 'pull_request' && !startsWith(github.ref, 'refs/tags/') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download packaged DMGs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: BOSTONCREW-SAMPLER-macos-*
+          path: deploy/latest-macos
+          merge-multiple: true
+
+      - name: Publish direct DMG release assets
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LATEST_TAG: macos-latest
+        run: |
+          set -euo pipefail
+
+          mapfile -t dmg_files < <(find deploy/latest-macos -maxdepth 1 -type f -name '*.dmg' | sort)
+          if [ "${#dmg_files[@]}" -lt 2 ]; then
+            printf '%s\n' "Expected both macOS DMGs, found:" >&2
+            find deploy/latest-macos -maxdepth 2 -type f -print >&2
+            exit 1
+          fi
+
+          git tag --force "$LATEST_TAG" "$GITHUB_SHA"
+          git push origin "refs/tags/$LATEST_TAG" --force
+
+          if ! gh release view "$LATEST_TAG" >/dev/null 2>&1; then
+            gh release create "$LATEST_TAG" \
+              --title "Latest macOS DMGs" \
+              --notes "Direct unsigned macOS DMG builds from main. Download the DMG for your CPU: x64 for Intel, arm64 for Apple Silicon." \
+              --prerelease
+          fi
+
+          for attempt in 1 2 3; do
+            if gh release upload "$LATEST_TAG" "${dmg_files[@]}" --clobber; then
+              exit 0
+            fi
+            sleep $((attempt * 20))
+          done
+
           exit 1

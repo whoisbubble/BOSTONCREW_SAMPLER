@@ -38,8 +38,6 @@ endif()
 
 qt_add_executable(appCPlusEventSampler
     main.cpp
-    LicenseManager.h
-    LicenseManager.cpp
     SamplerBackend.h
     SamplerBackend.cpp
     ${APP_ICON_RESOURCE_WINDOWS}
@@ -68,7 +66,6 @@ qt_add_qml_module(appCPlusEventSampler
         HostPopup.qml
         HelpPopup.qml
         IconButton.qml
-        LicenseGate.qml
         Main.qml
         PreviewWorkspace.qml
         PreviewSelectWindow.qml
@@ -147,20 +144,3 @@ install(TARGETS appCPlusEventSampler
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
-enable_testing()
-
-qt_add_executable(license_manager_tests
-    tests/LicenseManagerTests.cpp
-    LicenseManager.h
-    LicenseManager.cpp
-)
-
-target_link_libraries(license_manager_tests
-    PRIVATE Qt6::Core Qt6::Network Qt6::Test
-)
-
-set_target_properties(license_manager_tests PROPERTIES
-    WIN32_EXECUTABLE FALSE
-)
-
-add_test(NAME license_manager_tests COMMAND license_manager_tests)

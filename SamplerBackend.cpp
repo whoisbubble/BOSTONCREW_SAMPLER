@@ -104,6 +104,30 @@ QVariantList mediaRepeatFlags(const SlideData &slide)
     return flags;
 }
 
+QVariantList mediaBackgroundPaths(const SlideData &slide)
+{
+    QVariantList paths;
+    for (int i = 0; i < slide.mediaPaths.count(); ++i) {
+        if (i < slide.mediaCues.count())
+            paths.append(slide.mediaCues.at(i).backgroundMediaPath);
+        else
+            paths.append(QString());
+    }
+    return paths;
+}
+
+QVariantList mediaBackgroundRepeats(const SlideData &slide)
+{
+    QVariantList flags;
+    for (int i = 0; i < slide.mediaPaths.count(); ++i) {
+        if (i < slide.mediaCues.count())
+            flags.append(slide.mediaCues.at(i).backgroundRepeats);
+        else
+            flags.append(false);
+    }
+    return flags;
+}
+
 QString bundledToolPath(const QString &toolName)
 {
 #ifdef Q_OS_MACOS
@@ -296,6 +320,10 @@ QVariant SlideListModel::data(const QModelIndex &index, int role) const
         return mediaCueFlags(slide);
     case MediaRepeatsRole:
         return mediaRepeatFlags(slide);
+    case MediaBackgroundPathsRole:
+        return mediaBackgroundPaths(slide);
+    case MediaBackgroundRepeatsRole:
+        return mediaBackgroundRepeats(slide);
     case FirstMediaUrlRole:
         if (slide.mediaPaths.isEmpty())
             return QString();
@@ -323,6 +351,8 @@ QHash<int, QByteArray> SlideListModel::roleNames() const
         {MediaSampleNamesRole, "mediaSampleNames"},
         {MediaHasSamplesRole, "mediaHasSamples"},
         {MediaRepeatsRole, "mediaRepeats"},
+        {MediaBackgroundPathsRole, "mediaBackgroundPaths"},
+        {MediaBackgroundRepeatsRole, "mediaBackgroundRepeats"},
         {FirstMediaUrlRole, "firstMediaUrl"},
         {IsDefaultRole, "isDefault"}
     };
@@ -508,7 +538,6 @@ QString PreviewListModel::absolutePathAt(int row) const
 
 SamplerBackend::SamplerBackend(QObject *parent)
     : QObject(parent)
-    , m_licenseManager(this)
 {
     updateScreenGeometry();
     connect(qGuiApp, &QGuiApplication::screenAdded, this, &SamplerBackend::updateScreenGeometry);
@@ -546,19 +575,8 @@ SamplerBackend::SamplerBackend(QObject *parent)
         setStatus(m_hostCloseStatusOverride.isEmpty() ? "Host connection error: " + m_socket.errorString() : m_hostCloseStatusOverride);
         emit connectionChanged();
     });
-    connect(&m_licenseManager, &LicenseManager::stateChanged, this, [this]() {
-        if (!m_licenseManager.allowed()) {
-            if (m_stageActive && (m_currentSlideIndex >= FreeQuickSlideCount || m_currentMediaIndex >= FreeSlideMediaCount))
-                closeStage();
-            disconnectHost();
-            setSettingsMode(false);
-        }
-        emit licenseStateChanged();
-    });
 
     loadAll();
-    m_licenseManager.setStorageDir(saveDir());
-    m_licenseManager.initialize();
 }
 
 SamplerBackend::~SamplerBackend()
@@ -582,14 +600,9 @@ void SamplerBackend::setSettingsMode(bool enabled)
     m_settingsMode = enabled;
     emit settingsModeChanged();
 }
-
 bool SamplerBackend::audioPaused() const { return m_audioPaused; }
 bool SamplerBackend::stageActive() const { return m_stageActive; }
-bool SamplerBackend::freeMode() const { return !licenseAllowed(); }
-int SamplerBackend::freeQuickSlideLimit() const { return FreeQuickSlideCount; }
-int SamplerBackend::freeSampleLimit() const { return FreeSampleCount; }
-int SamplerBackend::freeLibrarySlideLimit() const { return FreeLibrarySlideCount; }
-int SamplerBackend::freeSlideMediaLimit() const { return FreeSlideMediaCount; }
+
 QString SamplerBackend::currentMediaUrl() const { return m_currentMediaPath.isEmpty() ? QString() : QUrl::fromLocalFile(m_currentMediaPath).toString(); }
 QString SamplerBackend::currentMediaPath() const { return m_currentMediaPath; }
 bool SamplerBackend::currentMediaIsVideo() const { return isVideoPath(m_currentMediaPath); }
@@ -602,6 +615,24 @@ bool SamplerBackend::currentMediaRepeats() const
         return false;
     const bool legacyRepeat = QFileInfo(slide->mediaPaths.at(m_currentMediaIndex)).fileName().startsWith("again", Qt::CaseInsensitive);
     return legacyRepeat || (m_currentMediaIndex < slide->mediaCues.count() && slide->mediaCues.at(m_currentMediaIndex).repeats);
+}
+QString SamplerBackend::currentBackgroundUrl() const
+{
+    const SlideData *slide = m_quickSlides.at(m_currentSlideIndex);
+    if (!slide || m_currentMediaIndex < 0 || m_currentMediaIndex >= slide->mediaPaths.count())
+        return QString();
+    if (m_currentMediaIndex < slide->mediaCues.count() && !slide->mediaCues.at(m_currentMediaIndex).backgroundMediaPath.isEmpty())
+        return urlForPath(slide->mediaCues.at(m_currentMediaIndex).backgroundMediaPath);
+    return QString();
+}
+bool SamplerBackend::currentBackgroundRepeats() const
+{
+    const SlideData *slide = m_quickSlides.at(m_currentSlideIndex);
+    if (!slide || m_currentMediaIndex < 0 || m_currentMediaIndex >= slide->mediaPaths.count())
+        return false;
+    if (m_currentMediaIndex < slide->mediaCues.count())
+        return slide->mediaCues.at(m_currentMediaIndex).backgroundRepeats;
+    return false;
 }
 QString SamplerBackend::nextMediaUrl() const { return m_nextMediaPath.isEmpty() ? QString() : QUrl::fromLocalFile(m_nextMediaPath).toString(); }
 QString SamplerBackend::slideCounterText() const
@@ -616,11 +647,6 @@ int SamplerBackend::currentMediaIndex() const { return m_currentMediaIndex; }
 bool SamplerBackend::connected() const { return m_socket.state() == QAbstractSocket::ConnectedState && m_webSocketReady; }
 QString SamplerBackend::statusMessage() const { return m_statusMessage; }
 QString SamplerBackend::savedHost() const { return m_savedHost; }
-bool SamplerBackend::licenseAllowed() const { return m_licenseManager.allowed(); }
-bool SamplerBackend::licenseBusy() const { return m_licenseManager.busy(); }
-QString SamplerBackend::licenseMessage() const { return m_licenseManager.message(); }
-QString SamplerBackend::licenseErrorMessage() const { return m_licenseManager.errorMessage(); }
-QString SamplerBackend::licenseApiUrl() const { return m_licenseManager.apiUrl(); }
 void SamplerBackend::setSavedHost(const QString &host)
 {
     if (m_savedHost == host)
@@ -636,11 +662,6 @@ QScreen *SamplerBackend::stageScreen() const { return m_stageScreen; }
 
 void SamplerBackend::addSample()
 {
-    if (!canAddSample()) {
-        setStatus("Free mode: up to 5 samples. Enter a license key to add more.");
-        return;
-    }
-
     const QString filePath = QFileDialog::getOpenFileName(nullptr, "Select a sample", QString(), "Audio files (*.mp3 *.wav *.m4a *.ogg *.flac)");
     if (filePath.isEmpty())
         return;
@@ -664,9 +685,8 @@ void SamplerBackend::playSample(int index, bool advanceSlide)
 {
     if (m_settingsMode)
         return;
-    if (!ensureSampleAvailable(index))
-        return;
-    if (startPlayback(&m_samples, index, true) && advanceSlide)
+    startPlayback(&m_samples, index, true);
+    if (advanceSlide)
         nextSlide();
 }
 
@@ -697,8 +717,6 @@ void SamplerBackend::togglePause()
 
 void SamplerBackend::updateSample(int index, const QString &name, double volume, bool stopSounds, const QString &color)
 {
-    if (!ensureSampleAvailable(index))
-        return;
     SampleData *sample = m_samples.at(index);
     if (!sample)
         return;
@@ -714,8 +732,6 @@ void SamplerBackend::updateSample(int index, const QString &name, double volume,
 
 void SamplerBackend::changeSampleFile(int index)
 {
-    if (!ensureSampleAvailable(index))
-        return;
     SampleData *sample = m_samples.at(index);
     if (!sample)
         return;
@@ -757,10 +773,6 @@ void SamplerBackend::moveSample(int from, int to)
 {
     if (from < 0 || from >= m_samples.rowCount() || to < 0 || to >= m_samples.rowCount() || from == to)
         return;
-    if (!licenseAllowed() && (from >= FreeSampleCount || to >= FreeSampleCount)) {
-        setStatus("Free mode: only the first 5 samples can be reordered.");
-        return;
-    }
     m_samples.moveItem(from, to);
     reindexActiveRowsAfterMove(&m_samples, from, to);
     saveSamples();
@@ -809,8 +821,6 @@ void SamplerBackend::replaceFixedSample(int index)
 
 void SamplerBackend::playQuickSlide(int index)
 {
-    if (!ensureQuickSlideAvailable(index))
-        return;
     SlideData *slide = m_quickSlides.at(index);
     if (!slide)
         return;
@@ -829,8 +839,6 @@ void SamplerBackend::playQuickSlide(int index)
 
 void SamplerBackend::assignQuickSlide(int quickIndex, int libraryIndex)
 {
-    if (!ensureQuickSlideAvailable(quickIndex) || !ensureLibrarySlideAvailable(libraryIndex))
-        return;
     const SlideData *slide = m_librarySlides.at(libraryIndex);
     if (!slide || quickIndex < 0 || quickIndex >= m_quickSlides.rowCount())
         return;
@@ -841,8 +849,6 @@ void SamplerBackend::assignQuickSlide(int quickIndex, int libraryIndex)
 
 void SamplerBackend::clearQuickSlide(int quickIndex)
 {
-    if (!ensureQuickSlideAvailable(quickIndex))
-        return;
     if (quickIndex < 0 || quickIndex >= m_quickSlides.rowCount())
         return;
     m_quickSlides.replace(quickIndex, createDefaultSlide());
@@ -895,11 +901,6 @@ void SamplerBackend::closeStage()
 
 void SamplerBackend::createLibrarySlide()
 {
-    if (!canCreateLibrarySlide()) {
-        setStatus("Free mode: up to 5 slide blocks. Enter a license key to add more.");
-        return;
-    }
-
     QString name = uniqueSlideName();
     QDir dir(baseDir());
     const QString relativeCatalog = "Content/" + name;
@@ -917,8 +918,6 @@ void SamplerBackend::createLibrarySlide()
 
 void SamplerBackend::updateLibrarySlide(int index, const QString &folderName, const QString &type)
 {
-    if (!ensureLibrarySlideAvailable(index))
-        return;
     SlideData *slide = m_librarySlides.at(index);
     if (!slide)
         return;
@@ -982,14 +981,6 @@ void SamplerBackend::deleteLibrarySlide(int index)
 
 void SamplerBackend::addMediaToLibrarySlide(int index)
 {
-    if (!canAddMediaToLibrarySlide(index)) {
-        if (!librarySlideAvailable(index))
-            setStatus("Free mode: only the first 5 slide blocks can be edited.");
-        else
-            setStatus("Free mode: up to 5 media files per slide. Enter a license key to add more.");
-        return;
-    }
-
     SlideData *slide = m_librarySlides.at(index);
     if (!slide)
         return;
@@ -998,14 +989,6 @@ void SamplerBackend::addMediaToLibrarySlide(int index)
         return;
 
     QStringList filesToAdd = files;
-    if (!licenseAllowed()) {
-        const int remaining = qMax(0, FreeSlideMediaCount - slide->mediaPaths.count());
-        filesToAdd = files.mid(0, remaining);
-        if (filesToAdd.isEmpty()) {
-            setStatus("Free mode: up to 5 media files per slide. Enter a license key to add more.");
-            return;
-        }
-    }
 
     const QString targetFolder = absolutePath(slide->catalogPath);
     QDir().mkpath(targetFolder);
@@ -1034,16 +1017,11 @@ void SamplerBackend::addMediaToLibrarySlide(int index)
     refreshAssignedSlides();
     saveSlides();
     saveQuickSlides();
-    if (filesToAdd.count() < files.count())
-        setStatus("Free mode: added only 5 media files for this slide.");
-    else
-        setStatus("Slide media added.");
+    setStatus("Slide media added.");
 }
 
 void SamplerBackend::addSampleToLibrarySlide(int index)
 {
-    if (!ensureLibrarySlideAvailable(index))
-        return;
     SlideData *slide = m_librarySlides.at(index);
     if (!slide)
         return;
@@ -1056,8 +1034,6 @@ void SamplerBackend::addSampleToLibrarySlide(int index)
 
 void SamplerBackend::moveLibrarySlideMedia(int slideIndex, int from, int to)
 {
-    if (!ensureSlideMediaAvailable(slideIndex, from) || !ensureSlideMediaAvailable(slideIndex, to))
-        return;
     SlideData *slide = m_librarySlides.at(slideIndex);
     if (!slide || from < 0 || from >= slide->mediaPaths.count() || to < 0 || to >= slide->mediaPaths.count() || from == to)
         return;
@@ -1072,10 +1048,6 @@ void SamplerBackend::moveLibrarySlideMedia(int slideIndex, int from, int to)
 
 void SamplerBackend::deleteLibrarySlideMedia(int slideIndex, int mediaIndex)
 {
-    if (!licenseAllowed() && slideIndex >= FreeLibrarySlideCount) {
-        setStatus("Free mode: only the first 5 slide blocks can be edited.");
-        return;
-    }
     SlideData *slide = m_librarySlides.at(slideIndex);
     if (!slide || mediaIndex < 0 || mediaIndex >= slide->mediaPaths.count())
         return;
@@ -1084,6 +1056,8 @@ void SamplerBackend::deleteLibrarySlideMedia(int slideIndex, int mediaIndex)
     const SlideData::MediaCue cue = slide->mediaCues.takeAt(mediaIndex);
     if (cue.hasSample)
         cleanupStoredFile(cue.sample.path);
+    if (!cue.backgroundMediaPath.isEmpty())
+        cleanupStoredFile(cue.backgroundMediaPath);
     ensureMediaCueCount(*slide);
     m_librarySlides.notifyChanged(slideIndex);
     refreshAssignedSlides();
@@ -1094,8 +1068,6 @@ void SamplerBackend::deleteLibrarySlideMedia(int slideIndex, int mediaIndex)
 
 void SamplerBackend::addSampleToLibrarySlideMedia(int slideIndex, int mediaIndex)
 {
-    if (!ensureSlideMediaAvailable(slideIndex, mediaIndex))
-        return;
     SlideData *slide = m_librarySlides.at(slideIndex);
     if (!slide || mediaIndex < 0 || mediaIndex >= slide->mediaPaths.count())
         return;
@@ -1132,8 +1104,6 @@ void SamplerBackend::addSampleToLibrarySlideMedia(int slideIndex, int mediaIndex
 
 void SamplerBackend::clearSampleFromLibrarySlideMedia(int slideIndex, int mediaIndex)
 {
-    if (!ensureSlideMediaAvailable(slideIndex, mediaIndex))
-        return;
     SlideData *slide = m_librarySlides.at(slideIndex);
     if (!slide || mediaIndex < 0 || mediaIndex >= slide->mediaPaths.count())
         return;
@@ -1156,8 +1126,6 @@ void SamplerBackend::clearSampleFromLibrarySlideMedia(int slideIndex, int mediaI
 
 void SamplerBackend::setLibrarySlideMediaRepeats(int slideIndex, int mediaIndex, bool repeats)
 {
-    if (!ensureSlideMediaAvailable(slideIndex, mediaIndex))
-        return;
     SlideData *slide = m_librarySlides.at(slideIndex);
     if (!slide || mediaIndex < 0 || mediaIndex >= slide->mediaPaths.count())
         return;
@@ -1173,6 +1141,72 @@ void SamplerBackend::setLibrarySlideMediaRepeats(int slideIndex, int mediaIndex,
     saveQuickSlides();
     emit stageChanged();
     setStatus(repeats ? "Video repeat enabled." : "Video repeat disabled.");
+}
+
+void SamplerBackend::setLibrarySlideMediaBackground(int slideIndex, int mediaIndex)
+{
+    SlideData *slide = m_librarySlides.at(slideIndex);
+    if (!slide || mediaIndex < 0 || mediaIndex >= slide->mediaPaths.count())
+        return;
+    const QString filePath = QFileDialog::getOpenFileName(nullptr, "Select background layer", QString(), "Media (*.mp4 *.avi *.wmv *.mov *.mkv *.webm *.jpg *.jpeg *.png)");
+    if (filePath.isEmpty())
+        return;
+    try {
+        ensureMediaCueCount(*slide);
+        const QString old = absolutePath(slide->mediaCues[mediaIndex].backgroundMediaPath);
+        
+        const QString targetFolder = absolutePath(slide->catalogPath);
+        QDir().mkpath(targetFolder);
+        
+        const QString targetPath = copyFileTo(filePath, targetFolder, fileBaseNameForCopy(filePath) + "-bg", QDateTime::currentMSecsSinceEpoch() % 100000, false);
+        const QString copied = storagePath(targetPath);
+        slide->mediaCues[mediaIndex].backgroundMediaPath = copied;
+        if (!old.isEmpty() && QDir::cleanPath(absolutePath(old)) != QDir::cleanPath(copied))
+            cleanupStoredFile(old);
+        m_librarySlides.notifyChanged(slideIndex);
+        refreshAssignedSlides();
+        saveSlides();
+        saveQuickSlides();
+        emit stageChanged();
+        setStatus("Background layer added.");
+    } catch (const std::exception &e) {
+        setStatus("Failed to add background layer: " + QString::fromUtf8(e.what()));
+    }
+}
+
+void SamplerBackend::clearLibrarySlideMediaBackground(int slideIndex, int mediaIndex)
+{
+    SlideData *slide = m_librarySlides.at(slideIndex);
+    if (!slide || mediaIndex < 0 || mediaIndex >= slide->mediaPaths.count())
+        return;
+    ensureMediaCueCount(*slide);
+    const QString old = absolutePath(slide->mediaCues[mediaIndex].backgroundMediaPath);
+    slide->mediaCues[mediaIndex].backgroundMediaPath.clear();
+    slide->mediaCues[mediaIndex].backgroundRepeats = false;
+    if (!old.isEmpty())
+        cleanupStoredFile(old);
+    m_librarySlides.notifyChanged(slideIndex);
+    refreshAssignedSlides();
+    saveSlides();
+    saveQuickSlides();
+    emit stageChanged();
+    setStatus("Background layer removed.");
+}
+
+void SamplerBackend::setLibrarySlideMediaBackgroundRepeats(int slideIndex, int mediaIndex, bool repeats)
+{
+    SlideData *slide = m_librarySlides.at(slideIndex);
+    if (!slide || mediaIndex < 0 || mediaIndex >= slide->mediaPaths.count())
+        return;
+    ensureMediaCueCount(*slide);
+    if (slide->mediaCues[mediaIndex].backgroundRepeats == repeats)
+        return;
+    slide->mediaCues[mediaIndex].backgroundRepeats = repeats;
+    m_librarySlides.notifyChanged(slideIndex);
+    refreshAssignedSlides();
+    saveSlides();
+    saveQuickSlides();
+    emit stageChanged();
 }
 
 void SamplerBackend::openLibraryFolder(int index)
@@ -1195,15 +1229,6 @@ void SamplerBackend::saveAll()
     saveQuickSlides();
 }
 
-void SamplerBackend::activateLicense(const QString &licenseKey)
-{
-    m_licenseManager.activate(licenseKey);
-}
-
-void SamplerBackend::retryLicenseCheck()
-{
-    m_licenseManager.checkNow();
-}
 
 void SamplerBackend::openPurchasePage()
 {
@@ -1303,40 +1328,38 @@ bool SamplerBackend::hasSecondScreen() const
 
 bool SamplerBackend::quickSlideAvailable(int index) const
 {
-    return licenseAllowed() || (index >= 0 && index < FreeQuickSlideCount);
+    return index >= 0 && index < m_quickSlides.rowCount();
 }
 
 bool SamplerBackend::sampleAvailable(int index) const
 {
-    return licenseAllowed() || (index >= 0 && index < FreeSampleCount);
+    return index >= 0 && index < m_samples.rowCount();
 }
 
 bool SamplerBackend::librarySlideAvailable(int index) const
 {
-    return licenseAllowed() || (index >= 0 && index < FreeLibrarySlideCount);
+    return index >= 0 && index < m_librarySlides.rowCount();
 }
 
 bool SamplerBackend::slideMediaAvailable(int slideIndex, int mediaIndex) const
 {
-    return librarySlideAvailable(slideIndex) && (licenseAllowed() || (mediaIndex >= 0 && mediaIndex < FreeSlideMediaCount));
+    const SlideData *slide = m_librarySlides.at(slideIndex);
+    return slide && mediaIndex >= 0 && mediaIndex < slide->mediaPaths.count();
 }
 
 bool SamplerBackend::canAddSample() const
 {
-    return licenseAllowed() || m_samples.rowCount() < FreeSampleCount;
+    return true;
 }
 
 bool SamplerBackend::canCreateLibrarySlide() const
 {
-    return licenseAllowed() || m_librarySlides.rowCount() < FreeLibrarySlideCount;
+    return true;
 }
 
 bool SamplerBackend::canAddMediaToLibrarySlide(int index) const
 {
-    const SlideData *slide = m_librarySlides.at(index);
-    if (!slide)
-        return false;
-    return licenseAllowed() || (index < FreeLibrarySlideCount && slide->mediaPaths.count() < FreeSlideMediaCount);
+    return librarySlideAvailable(index);
 }
 
 QString SamplerBackend::baseDir() const
@@ -1541,12 +1564,17 @@ QJsonObject SamplerBackend::slideToJson(const SlideData &slide)
 
     QJsonArray mediaSamples;
     QJsonArray mediaRepeats;
+    QJsonArray mediaBackgroundPathsArray;
+    QJsonArray mediaBackgroundRepeatsArray;
     for (int i = 0; i < slide.mediaPaths.count(); ++i) {
         if (i < slide.mediaCues.count() && slide.mediaCues.at(i).hasSample)
             mediaSamples.append(sampleToJson(slide.mediaCues.at(i).sample));
         else
             mediaSamples.append(QJsonValue::Null);
         mediaRepeats.append(i < slide.mediaCues.count() && slide.mediaCues.at(i).repeats && isVideoFileName(slide.mediaPaths.at(i)));
+        
+        mediaBackgroundPathsArray.append(i < slide.mediaCues.count() ? slide.mediaCues.at(i).backgroundMediaPath : QString());
+        mediaBackgroundRepeatsArray.append(i < slide.mediaCues.count() ? slide.mediaCues.at(i).backgroundRepeats : false);
     }
 
     QJsonObject object{
@@ -1554,6 +1582,8 @@ QJsonObject SamplerBackend::slideToJson(const SlideData &slide)
         {"MediaPaths", media},
         {"MediaSamples", mediaSamples},
         {"MediaRepeats", mediaRepeats},
+        {"MediaBackgroundPaths", mediaBackgroundPathsArray},
+        {"MediaBackgroundRepeats", mediaBackgroundRepeatsArray},
         {"IsSampleNeed", hasAnyMediaCue(slide)},
         {"Count", slide.mediaPaths.count()},
         {"Type", slide.type},
@@ -1576,6 +1606,8 @@ SlideData SamplerBackend::slideFromJson(const QJsonObject &object)
 
     const QJsonArray mediaSamples = object.value("MediaSamples").toArray();
     const QJsonArray mediaRepeats = object.value("MediaRepeats").toArray();
+    const QJsonArray mediaBackgroundPathsArray = object.value("MediaBackgroundPaths").toArray();
+    const QJsonArray mediaBackgroundRepeatsArray = object.value("MediaBackgroundRepeats").toArray();
     for (int i = 0; i < slide.mediaPaths.count(); ++i) {
         SlideData::MediaCue cue;
         if (i < mediaSamples.count() && mediaSamples.at(i).isObject()) {
@@ -1585,6 +1617,10 @@ SlideData SamplerBackend::slideFromJson(const QJsonObject &object)
         const bool legacyRepeat = isVideoFileName(slide.mediaPaths.at(i))
             && QFileInfo(slide.mediaPaths.at(i)).fileName().startsWith("again", Qt::CaseInsensitive);
         cue.repeats = legacyRepeat || (i < mediaRepeats.count() && mediaRepeats.at(i).toBool(false));
+        
+        cue.backgroundMediaPath = i < mediaBackgroundPathsArray.count() ? normalizedRelative(mediaBackgroundPathsArray.at(i).toString()) : QString();
+        cue.backgroundRepeats = i < mediaBackgroundRepeatsArray.count() ? mediaBackgroundRepeatsArray.at(i).toBool(false) : false;
+        
         slide.mediaCues.append(cue);
     }
 
@@ -1846,43 +1882,27 @@ void SamplerBackend::ensureMediaCueCount(SlideData &slide) const
 }
 
 int SamplerBackend::playableMediaCount(const SlideData &slide) const
-{
-    return licenseAllowed() ? slide.mediaPaths.count() : qMin(slide.mediaPaths.count(), FreeSlideMediaCount);
+{    return slide.mediaPaths.count();
 }
 
 bool SamplerBackend::ensureQuickSlideAvailable(int index)
 {
-    if (quickSlideAvailable(index))
-        return true;
-    setStatus("Free mode: only the first 3 slide buttons are available.");
-    return false;
+    return quickSlideAvailable(index);
 }
 
 bool SamplerBackend::ensureSampleAvailable(int index)
 {
-    if (sampleAvailable(index))
-        return true;
-    setStatus("Free mode: only the first 5 samples are available.");
-    return false;
+    return sampleAvailable(index);
 }
 
 bool SamplerBackend::ensureLibrarySlideAvailable(int index)
 {
-    if (librarySlideAvailable(index))
-        return true;
-    setStatus("Free mode: only the first 5 slide blocks are available.");
-    return false;
+    return librarySlideAvailable(index);
 }
 
 bool SamplerBackend::ensureSlideMediaAvailable(int slideIndex, int mediaIndex)
 {
-    if (slideMediaAvailable(slideIndex, mediaIndex))
-        return true;
-    if (!librarySlideAvailable(slideIndex))
-        setStatus("Free mode: only the first 5 slide blocks are available.");
-    else
-        setStatus("Free mode: only the first 5 media files per slide are available.");
-    return false;
+    return slideMediaAvailable(slideIndex, mediaIndex);
 }
 
 bool SamplerBackend::startPlayback(SampleListModel *model, int row, bool showErrors, QObject *ownedObject)

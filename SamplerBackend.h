@@ -14,7 +14,6 @@
 #include <QTimer>
 #include <QUrl>
 
-#include "LicenseManager.h"
 
 struct SampleData
 {
@@ -34,6 +33,8 @@ struct SlideData
         SampleData sample;
         bool hasSample = false;
         bool repeats = false;
+        QString backgroundMediaPath;
+        bool backgroundRepeats = false;
     };
 
     QString folderName;
@@ -103,6 +104,8 @@ public:
         MediaSampleNamesRole,
         MediaHasSamplesRole,
         MediaRepeatsRole,
+        MediaBackgroundPathsRole,
+        MediaBackgroundRepeatsRole,
         FirstMediaUrlRole,
         IsDefaultRole
     };
@@ -177,15 +180,13 @@ class SamplerBackend final : public QObject
     Q_PROPERTY(bool settingsMode READ settingsMode WRITE setSettingsMode NOTIFY settingsModeChanged)
     Q_PROPERTY(bool audioPaused READ audioPaused NOTIFY audioPausedChanged)
     Q_PROPERTY(bool stageActive READ stageActive NOTIFY stageChanged)
-    Q_PROPERTY(bool freeMode READ freeMode NOTIFY licenseStateChanged)
-    Q_PROPERTY(int freeQuickSlideLimit READ freeQuickSlideLimit CONSTANT)
-    Q_PROPERTY(int freeSampleLimit READ freeSampleLimit CONSTANT)
-    Q_PROPERTY(int freeLibrarySlideLimit READ freeLibrarySlideLimit CONSTANT)
-    Q_PROPERTY(int freeSlideMediaLimit READ freeSlideMediaLimit CONSTANT)
+
     Q_PROPERTY(QString currentMediaUrl READ currentMediaUrl NOTIFY stageChanged)
     Q_PROPERTY(QString currentMediaPath READ currentMediaPath NOTIFY stageChanged)
     Q_PROPERTY(bool currentMediaIsVideo READ currentMediaIsVideo NOTIFY stageChanged)
     Q_PROPERTY(bool currentMediaRepeats READ currentMediaRepeats NOTIFY stageChanged)
+    Q_PROPERTY(QString currentBackgroundUrl READ currentBackgroundUrl NOTIFY stageChanged)
+    Q_PROPERTY(bool currentBackgroundRepeats READ currentBackgroundRepeats NOTIFY stageChanged)
     Q_PROPERTY(QString nextMediaUrl READ nextMediaUrl NOTIFY stageChanged)
     Q_PROPERTY(QString slideCounterText READ slideCounterText NOTIFY stageChanged)
     Q_PROPERTY(int currentSlideIndex READ currentSlideIndex NOTIFY stageChanged)
@@ -193,11 +194,7 @@ class SamplerBackend final : public QObject
     Q_PROPERTY(bool connected READ connected NOTIFY connectionChanged)
     Q_PROPERTY(QString statusMessage READ statusMessage NOTIFY statusMessageChanged)
     Q_PROPERTY(QString savedHost READ savedHost WRITE setSavedHost NOTIFY savedHostChanged)
-    Q_PROPERTY(bool licenseAllowed READ licenseAllowed NOTIFY licenseStateChanged)
-    Q_PROPERTY(bool licenseBusy READ licenseBusy NOTIFY licenseStateChanged)
-    Q_PROPERTY(QString licenseMessage READ licenseMessage NOTIFY licenseStateChanged)
-    Q_PROPERTY(QString licenseErrorMessage READ licenseErrorMessage NOTIFY licenseStateChanged)
-    Q_PROPERTY(QString licenseApiUrl READ licenseApiUrl CONSTANT)
+
     Q_PROPERTY(int stageX READ stageX NOTIFY screenGeometryChanged)
     Q_PROPERTY(int stageY READ stageY NOTIFY screenGeometryChanged)
     Q_PROPERTY(int stageWidth READ stageWidth NOTIFY screenGeometryChanged)
@@ -218,15 +215,14 @@ public:
     void setSettingsMode(bool enabled);
     bool audioPaused() const;
     bool stageActive() const;
-    bool freeMode() const;
-    int freeQuickSlideLimit() const;
-    int freeSampleLimit() const;
-    int freeLibrarySlideLimit() const;
-    int freeSlideMediaLimit() const;
+
+
     QString currentMediaUrl() const;
     QString currentMediaPath() const;
     bool currentMediaIsVideo() const;
     bool currentMediaRepeats() const;
+    QString currentBackgroundUrl() const;
+    bool currentBackgroundRepeats() const;
     QString nextMediaUrl() const;
     QString slideCounterText() const;
     int currentSlideIndex() const;
@@ -239,7 +235,6 @@ public:
     bool licenseBusy() const;
     QString licenseMessage() const;
     QString licenseErrorMessage() const;
-    QString licenseApiUrl() const;
     int stageX() const;
     int stageY() const;
     int stageWidth() const;
@@ -277,11 +272,13 @@ public:
     Q_INVOKABLE void addSampleToLibrarySlideMedia(int slideIndex, int mediaIndex);
     Q_INVOKABLE void clearSampleFromLibrarySlideMedia(int slideIndex, int mediaIndex);
     Q_INVOKABLE void setLibrarySlideMediaRepeats(int slideIndex, int mediaIndex, bool repeats);
+    Q_INVOKABLE void setLibrarySlideMediaBackground(int slideIndex, int mediaIndex);
+    Q_INVOKABLE void clearLibrarySlideMediaBackground(int slideIndex, int mediaIndex);
+    Q_INVOKABLE void setLibrarySlideMediaBackgroundRepeats(int slideIndex, int mediaIndex, bool repeats);
     Q_INVOKABLE void openLibraryFolder(int index);
     Q_INVOKABLE void openDataFolder();
     Q_INVOKABLE void saveAll();
-    Q_INVOKABLE void activateLicense(const QString &licenseKey);
-    Q_INVOKABLE void retryLicenseCheck();
+
     Q_INVOKABLE void openPurchasePage();
 
     Q_INVOKABLE void connectHost(const QString &host);
@@ -396,7 +393,6 @@ private:
     PreviewListModel m_previewItems;
     QList<ActivePlayback> m_activePlaybacks;
     QTcpSocket m_socket;
-    LicenseManager m_licenseManager;
     QTimer m_hostConnectionTimer;
     QByteArray m_socketBuffer;
     QByteArray m_webSocketKey;

@@ -63,14 +63,11 @@ ApplicationWindow {
                 height: 42
                 backend: root.backend
                 maximized: root.maximized
-                licensed: root.backend.licenseAllowed
                 onHostRequested: {
-                    if (root.backend.licenseAllowed)
-                        hostPopup.open()
+                    hostPopup.open()
                 }
                 onRemoteRequested: {
-                    if (root.backend.licenseAllowed)
-                        remoteWindow.openRemote()
+                    remoteWindow.openRemote()
                 }
                 onHelpRequested: helpPopup.open()
                 onMinimizeRequested: root.showMinimized()
@@ -106,17 +103,6 @@ ApplicationWindow {
                 onPreviewRequested: {
                     previewSelectWindow.openPreview()
                 }
-            }
-
-            LicenseGate {
-                anchors.left: parent.left
-                anchors.leftMargin: 1
-                anchors.right: parent.right
-                anchors.rightMargin: 1
-                anchors.top: titleBar.bottom
-                anchors.bottom: parent.bottom
-                anchors.bottomMargin: 1
-                backend: root.backend
             }
         }
     }
@@ -256,17 +242,5 @@ ApplicationWindow {
         backend: root.backend
         ownerX: root.x
         ownerY: root.y
-    }
-
-    Connections {
-        target: root.backend
-
-        function onLicenseStateChanged() {
-            if (root.backend.licenseAllowed)
-                return
-            hostPopup.close()
-            hostInfoWindow.hide()
-            remoteWindow.hide()
-        }
     }
 }

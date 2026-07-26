@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls
 
 Item {
     id: library
@@ -103,11 +104,15 @@ Item {
                         required property var mediaSampleNames
                         required property var mediaHasSamples
                         required property var mediaRepeats
+                        required property var mediaBackgroundPaths
+                        required property var mediaBackgroundRepeats
+
+                        property bool isExpanded: false
 
                         readonly property bool selected: library.selectedIndex === row.index
                         readonly property bool matchesSearch: library.slideMatches(row.folderName, row.slideType, row.mediaPaths, row.mediaSampleNames)
                         readonly property bool available: library.backend.librarySlideAvailable(row.index)
-                        readonly property int cardHeight: row.mediaCount > 0 ? 168 : 94
+                        readonly property int cardHeight: row.mediaCount > 0 && row.isExpanded ? 168 : 94
 
                         visible: row.matchesSearch
                         width: slideColumn.width
@@ -132,6 +137,7 @@ Item {
                                 library.selectedIndex = row.index
                                 library.selectedName = row.folderName
                                 library.selectedType = row.slideType
+                                row.isExpanded = !row.isExpanded
                             }
                         }
 
@@ -241,7 +247,7 @@ Item {
                             Flickable {
                                 id: mediaFlick
 
-                                visible: row.mediaCount > 0
+                                visible: row.mediaCount > 0 && row.isExpanded
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 72
                                 clip: true
@@ -269,6 +275,8 @@ Item {
                                             readonly property bool hasCue: !!(row.mediaHasSamples && row.mediaHasSamples[mediaTile.index])
                                             readonly property string cueName: row.mediaSampleNames && mediaTile.index < row.mediaSampleNames.length ? row.mediaSampleNames[mediaTile.index] : ""
                                             readonly property bool repeats: !!(row.mediaRepeats && row.mediaRepeats[mediaTile.index])
+                                            readonly property bool hasBackground: !!(row.mediaBackgroundPaths && row.mediaBackgroundPaths[mediaTile.index] !== "")
+                                            readonly property bool backgroundRepeats: !!(row.mediaBackgroundRepeats && row.mediaBackgroundRepeats[mediaTile.index])
                                             readonly property bool available: library.backend.slideMediaAvailable(row.index, mediaTile.index)
 
                                             width: 206
@@ -327,7 +335,7 @@ Item {
 
                                                     Text {
                                                         Layout.fillWidth: true
-                                                        text: library.fileName(mediaTile.modelData)
+                                                        text: library.fileName(mediaTile.modelData) + (mediaTile.hasBackground ? " [+фон]" : "")
                                                         color: AppTheme.text
                                                         font.family: AppTheme.fontFamily
                                                         font.pixelSize: 9
@@ -350,77 +358,64 @@ Item {
                                                             width: 20
                                                             height: 20
                                                             side: 20
-                                                            iconSize: 11
-                                                            iconName: "up"
-                                                            enabled: mediaTile.available && mediaTile.index > 0
-                                                            tip: "Move media earlier"
-                                                            onClicked: library.backend.moveLibrarySlideMedia(row.index, mediaTile.index, mediaTile.index - 1)
-                                                        }
-
-                                                        IconButton {
-                                                            width: 20
-                                                            height: 20
-                                                            side: 20
-                                                            iconSize: 11
-                                                            iconName: "down"
-                                                            enabled: mediaTile.available && mediaTile.index + 1 < row.mediaPaths.length && library.backend.slideMediaAvailable(row.index, mediaTile.index + 1)
-                                                            tip: "Move media later"
-                                                            onClicked: library.backend.moveLibrarySlideMedia(row.index, mediaTile.index, mediaTile.index + 1)
-                                                        }
-
-                                                        IconButton {
-                                                            width: 20
-                                                            height: 20
-                                                            side: 20
-                                                            iconSize: 11
-                                                            iconName: "repeat"
-                                                            enabled: mediaTile.available && mediaTile.isVideo
-                                                            accentFill: mediaTile.repeats
-                                                            tip: "Toggle video repeat"
-                                                            onClicked: library.backend.setLibrarySlideMediaRepeats(row.index, mediaTile.index, !mediaTile.repeats)
-                                                        }
-
-                                                        IconButton {
-                                                            width: 20
-                                                            height: 20
-                                                            side: 20
-                                                            iconSize: 11
-                                                            iconName: "audio"
-                                                            enabled: mediaTile.available
-                                                            accentFill: mediaTile.hasCue
-                                                            tip: mediaTile.hasCue
-                                                                ? "Left: change cue\nRight: remove cue"
-                                                                : "Assign cue sound"
-                                                            onClicked: function(mouse) {
-                                                                if (mouse.button === Qt.RightButton && mediaTile.hasCue)
-                                                                    library.backend.clearSampleFromLibrarySlideMedia(row.index, mediaTile.index)
-                                                                else
-                                                                    library.backend.addSampleToLibrarySlideMedia(row.index, mediaTile.index)
+                                                            iconSize: 14
+                                                            iconName: "menu"
+                                                            tip: "Настройки медиа"
+                                                            onClicked: mediaMenu.open()
+                                                            
+                                                            Menu {
+                                                                id: mediaMenu
+                                                                y: 20
+                                                                
+                                                                MenuItem {
+                                                                    text: "Сместить выше"
+                                                                    enabled: mediaTile.available && mediaTile.index > 0
+                                                                    onTriggered: library.backend.moveLibrarySlideMedia(row.index, mediaTile.index, mediaTile.index - 1)
+                                                                }
+                                                                MenuItem {
+                                                                    text: "Сместить ниже"
+                                                                    enabled: mediaTile.available && mediaTile.index + 1 < row.mediaPaths.length && library.backend.slideMediaAvailable(row.index, mediaTile.index + 1)
+                                                                    onTriggered: library.backend.moveLibrarySlideMedia(row.index, mediaTile.index, mediaTile.index + 1)
+                                                                }
+                                                                MenuItem {
+                                                                    text: mediaTile.repeats ? "Выключить цикл" : "Цикл"
+                                                                    enabled: mediaTile.available && mediaTile.isVideo
+                                                                    onTriggered: library.backend.setLibrarySlideMediaRepeats(row.index, mediaTile.index, !mediaTile.repeats)
+                                                                }
+                                                                MenuItem {
+                                                                    text: mediaTile.hasCue ? "Изменить звук" : "Добавить звук"
+                                                                    enabled: mediaTile.available
+                                                                    onTriggered: library.backend.addSampleToLibrarySlideMedia(row.index, mediaTile.index)
+                                                                }
+                                                                MenuItem {
+                                                                    text: "Убрать звук"
+                                                                    enabled: mediaTile.available && mediaTile.hasCue
+                                                                    visible: mediaTile.hasCue
+                                                                    onTriggered: library.backend.clearSampleFromLibrarySlideMedia(row.index, mediaTile.index)
+                                                                }
+                                                                MenuItem {
+                                                                    text: "Добавить фон"
+                                                                    enabled: mediaTile.available
+                                                                    onTriggered: library.backend.setLibrarySlideMediaBackground(row.index, mediaTile.index)
+                                                                }
+                                                                MenuItem {
+                                                                    text: "Убрать фон"
+                                                                    visible: mediaTile.hasBackground
+                                                                    enabled: mediaTile.available
+                                                                    onTriggered: library.backend.clearLibrarySlideMediaBackground(row.index, mediaTile.index)
+                                                                }
+                                                                MenuItem {
+                                                                    text: mediaTile.backgroundRepeats ? "Выключить цикл фона" : "Цикл фона"
+                                                                    visible: mediaTile.hasBackground
+                                                                    enabled: mediaTile.available
+                                                                    onTriggered: library.backend.setLibrarySlideMediaBackgroundRepeats(row.index, mediaTile.index, !mediaTile.backgroundRepeats)
+                                                                }
+                                                                MenuItem {
+                                                                    text: "Удалить"
+                                                                    enabled: mediaTile.available
+                                                                    onTriggered: library.backend.deleteLibrarySlideMedia(row.index, mediaTile.index)
+                                                                }
                                                             }
-                                                        }
-
-                                                        IconButton {
-                                                            visible: mediaTile.hasCue
-                                                            width: visible ? 20 : 0
-                                                            height: 20
-                                                            side: 20
-                                                            iconSize: 11
-                                                            iconName: "close"
-                                                            dangerFill: true
-                                                            enabled: mediaTile.available
-                                                            tip: "Remove cue"
-                                                            onClicked: library.backend.clearSampleFromLibrarySlideMedia(row.index, mediaTile.index)
-                                                        }
-
-                                                        IconButton {
-                                                            width: 20
-                                                            height: 20
-                                                            side: 20
-                                                            iconSize: 11
-                                                            iconName: "trash"
-                                                            dangerFill: true
-                                                            tip: "Delete media"
-                                                            onClicked: library.backend.deleteLibrarySlideMedia(row.index, mediaTile.index)
                                                         }
                                                     }
                                                 }

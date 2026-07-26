@@ -16,6 +16,8 @@ Window {
     readonly property string requestedMediaUrl: stage.backend.stageActive ? stage.backend.currentMediaUrl : ""
     readonly property bool requestedMediaIsVideo: stage.backend.stageActive && stage.backend.currentMediaIsVideo
     readonly property bool requestedMediaRepeats: stage.backend.stageActive && stage.backend.currentMediaRepeats
+    readonly property string requestedBackgroundUrl: stage.backend.stageActive ? stage.backend.currentBackgroundUrl : ""
+    readonly property bool requestedBackgroundRepeats: stage.backend.stageActive && stage.backend.currentBackgroundRepeats
 
     function configureWindow() {
         if (stage.backend.stageScreen)
@@ -83,12 +85,13 @@ Window {
                 && activeSurface.loadedGeneration === stage.layoutGeneration
                 && !forceReload) {
             activeSurface.repeats = stage.requestedMediaRepeats
+            activeSurface.backgroundRepeats = stage.requestedBackgroundRepeats
             return
         }
 
         var loadingIndex = stage.activeSurfaceIndex === 0 ? 1 : 0
         var loadingSurface = stage.surfaceAt(loadingIndex)
-        loadingSurface.loadMedia(targetUrl, stage.requestedMediaIsVideo, stage.requestedMediaRepeats, stage.layoutGeneration)
+        loadingSurface.loadMedia(targetUrl, stage.requestedMediaIsVideo, stage.requestedMediaRepeats, stage.layoutGeneration, stage.requestedBackgroundUrl, stage.requestedBackgroundRepeats, stage.requestedMediaCrossfade)
     }
 
     function commitSurface(index) {
@@ -102,6 +105,7 @@ Window {
         var previousIndex = stage.activeSurfaceIndex
         stage.activeSurfaceIndex = index
         candidate.repeats = stage.requestedMediaRepeats
+        candidate.backgroundRepeats = stage.requestedBackgroundRepeats
 
         if (previousIndex !== index)
             stage.surfaceAt(previousIndex).clearSurface()
@@ -163,43 +167,90 @@ Window {
         property bool repeats: false
         property bool active: false
         property bool frameReady: false
+        property bool mainReady: false
+        property bool bgReady: false
         property int loadedGeneration: -1
+        property string backgroundUrl: ""
+        property bool backgroundRepeats: false
 
         signal readyForCommit(int surfaceIndex)
 
-        function completeReady() {
-            if (!surface.frameReady) {
-                surface.frameReady = true
+        function checkOverallReady() {
+            if (surface.frameReady) return;
+            var needsBg = surface.backgroundUrl !== "";
+            var isBgReady = !needsBg || surface.bgReady;
+            var needsMain = surface.mediaUrl !== "";
+            var isMainReady = !needsMain || surface.mainReady;
+
+            if (isBgReady && isMainReady) {
+                surface.frameReady = true;
                 if (surface.isVideo && !surface.active)
-                    surfacePlayer.pause()
+                    surfacePlayer.pause();
+                
+                var bgIsVideo = surface.backgroundUrl.match(/\.(mp4|avi|wmv|mov|mkv|webm)$/i);
+                if (bgIsVideo && !surface.active)
+                    bgPlayer.pause();
+
+                surface.readyForCommit(surface.surfaceIndex);
             }
-            surface.readyForCommit(surface.surfaceIndex)
         }
 
         function clearSurface() {
             surface.frameReady = false
+            surface.mainReady = false
+            surface.bgReady = false
             surface.mediaUrl = ""
             surface.isVideo = false
             surface.repeats = false
+            surface.backgroundUrl = ""
+            surface.backgroundRepeats = false
             surface.loadedGeneration = -1
             stillImage.source = ""
             surfacePlayer.stop()
             surfacePlayer.source = ""
+            bgStillImage.source = ""
+            bgPlayer.stop()
+            bgPlayer.source = ""
         }
 
-        function loadMedia(url, video, shouldRepeat, generation) {
+        function loadMedia(url, video, shouldRepeat, generation, bgUrl, bgRepeats) {
             if (surface.mediaUrl === url && surface.isVideo === video && surface.loadedGeneration === generation) {
                 surface.repeats = shouldRepeat
+                surface.backgroundRepeats = bgRepeats
                 if (surface.frameReady)
                     surface.readyForCommit(surface.surfaceIndex)
                 return
             }
 
             surface.frameReady = false
+            surface.mainReady = false
+            surface.bgReady = false
             surface.mediaUrl = url
             surface.isVideo = video
             surface.repeats = shouldRepeat
+            surface.backgroundUrl = bgUrl || ""
+            surface.backgroundRepeats = bgRepeats || false
             surface.loadedGeneration = generation
+
+            if (surface.backgroundUrl !== "") {
+                var bgIsVideo = surface.backgroundUrl.match(/\.(mp4|avi|wmv|mov|mkv|webm)$/i)
+                if (bgIsVideo) {
+                    bgStillImage.source = ""
+                    bgPlayer.source = surface.backgroundUrl
+                    bgPlayer.play()
+                } else {
+                    bgPlayer.stop()
+                    bgPlayer.source = ""
+                    bgStillImage.source = surface.backgroundUrl
+                    if (bgStillImage.status === Image.Ready || bgStillImage.status === Image.Error)
+                        surface.bgReady = true
+                }
+            } else {
+                surface.bgReady = true
+                bgPlayer.stop()
+                bgPlayer.source = ""
+                bgStillImage.source = ""
+            }
 
             if (url === "") {
                 surface.clearSurface()
@@ -214,12 +265,20 @@ Window {
                 surfacePlayer.stop()
                 surfacePlayer.source = ""
                 stillImage.source = url
-                if (stillImage.status === Image.Ready)
-                    surface.completeReady()
+                if (stillImage.status === Image.Ready || stillImage.status === Image.Error)
+                    surface.mainReady = true
             }
+            
+            surface.checkOverallReady()
         }
 
         function togglePlayback() {
+            if (surface.backgroundUrl !== "" && bgPlayer.source.toString() !== "") {
+                if (bgPlayer.playbackState === MediaPlayer.PlayingState)
+                    bgPlayer.pause()
+                else
+                    bgPlayer.play()
+            }
             if (!surface.isVideo || surface.mediaUrl === "")
                 return
             if (surfacePlayer.playbackState === MediaPlayer.PlayingState)
@@ -229,6 +288,10 @@ Window {
         }
 
         function restartPlayback() {
+            if (surface.backgroundUrl !== "" && bgPlayer.source.toString() !== "") {
+                bgPlayer.setPosition(0)
+                bgPlayer.play()
+            }
             if (!surface.isVideo || surface.mediaUrl === "")
                 return
             surfacePlayer.setPosition(0)
@@ -239,13 +302,74 @@ Window {
         visible: surface.mediaUrl !== ""
         opacity: surface.active && surface.frameReady ? 1 : 0
 
-        onActiveChanged: {
-            if (!surface.isVideo || surface.mediaUrl === "")
-                return
-            if (surface.active)
-                surfacePlayer.play()
-            else if (surface.frameReady)
-                surfacePlayer.pause()
+        function applyActiveState() {
+            if (surface.active) {
+                if (surface.isVideo && surface.mediaUrl !== "") surfacePlayer.play()
+                if (bgPlayer.source.toString() !== "") bgPlayer.play()
+            } else if (surface.frameReady) {
+                if (surface.isVideo) surfacePlayer.pause()
+                if (bgPlayer.source.toString() !== "") bgPlayer.pause()
+            }
+        }
+
+        onActiveChanged: applyActiveState()
+        onFrameReadyChanged: applyActiveState()
+        
+        Image {
+            id: bgStillImage
+
+            anchors.fill: parent
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+            smooth: true
+            visible: surface.backgroundUrl !== "" && bgPlayer.source.toString() === ""
+
+            onStatusChanged: {
+                var bgIsVideo = surface.backgroundUrl.match(/\.(mp4|avi|wmv|mov|mkv|webm)$/i)
+                if (bgIsVideo || source.toString() !== surface.backgroundUrl)
+                    return
+                if (status === Image.Ready || status === Image.Error) {
+                    surface.bgReady = true
+                    surface.checkOverallReady()
+                }
+            }
+        }
+
+        MediaPlayer {
+            id: bgPlayer
+
+            videoOutput: bgVideo
+            audioOutput: AudioOutput {
+                muted: !surface.active
+            }
+            loops: surface.backgroundRepeats ? MediaPlayer.Infinite : 1
+            
+            onSourceChanged: {
+                if (source !== "")
+                    play()
+            }
+        }
+
+        VideoOutput {
+            id: bgVideo
+
+            anchors.fill: parent
+            fillMode: VideoOutput.PreserveAspectCrop
+            visible: surface.backgroundUrl !== "" && bgPlayer.source.toString() !== ""
+        }
+
+        Connections {
+            target: bgVideo.videoSink
+
+            function onVideoFrameChanged() {
+                var bgIsVideo = surface.backgroundUrl.match(/\.(mp4|avi|wmv|mov|mkv|webm)$/i)
+                if (!bgIsVideo || surface.backgroundUrl === "")
+                    return
+                if (bgPlayer.source.toString() === surface.backgroundUrl) {
+                    surface.bgReady = true
+                    surface.checkOverallReady()
+                }
+            }
         }
 
         Image {
@@ -260,8 +384,10 @@ Window {
             onStatusChanged: {
                 if (surface.isVideo || source.toString() !== surface.mediaUrl)
                     return
-                if (status === Image.Ready || status === Image.Error)
-                    surface.completeReady()
+                if (status === Image.Ready || status === Image.Error) {
+                    surface.mainReady = true
+                    surface.checkOverallReady()
+                }
             }
         }
 
@@ -295,8 +421,10 @@ Window {
             function onVideoFrameChanged() {
                 if (!surface.isVideo || surface.mediaUrl === "")
                     return
-                if (surfacePlayer.source.toString() === surface.mediaUrl)
-                    surface.completeReady()
+                if (surfacePlayer.source.toString() === surface.mediaUrl) {
+                    surface.mainReady = true
+                    surface.checkOverallReady()
+                }
             }
         }
     }

@@ -15,7 +15,7 @@ permissions:
 jobs:
   package-windows:
     name: Package Windows x64
-    runs-on: windows-latest
+    runs-on: windows-2022
     timeout-minutes: 60
 
     env:
@@ -23,6 +23,7 @@ jobs:
       CONFIGURATION: Release
       PORTABLE_ARCHIVE_PATH: deploy\BOSTONCREW-SAMPLER-windows-portable.zip
       INSTALLER_PATH: deploy\BOSTONCREW-SAMPLER-windows-setup.exe
+      RELEASE_NOTES_PATH: docs\releases\free-v1.0.0.md
 
     steps:
       - name: Checkout
@@ -50,7 +51,11 @@ jobs:
         shell: pwsh
         run: ctest --test-dir build-windows --build-config $env:CONFIGURATION --output-on-failure
 
-      - name: Deploy portable app
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      - name: Deploy portable app and installer
         shell: pwsh
         run: |
           $qtBin = Join-Path $env:QT_ROOT_DIR "bin"
@@ -58,7 +63,9 @@ jobs:
             -BuildDir build-windows `
             -Configuration $env:CONFIGURATION `
             -QtBinDir $qtBin `
-            -ArchivePath $env:PORTABLE_ARCHIVE_PATH
+            -ArchivePath $env:PORTABLE_ARCHIVE_PATH `
+            -InstallerPath $env:INSTALLER_PATH `
+            -BuildInstaller
 
       - name: Validate Windows deploy
         shell: pwsh
@@ -72,25 +79,6 @@ jobs:
               throw "Required deploy file is missing: $path"
             }
           }
-
-      - name: Install Inno Setup
-        shell: pwsh
-        run: choco install innosetup --no-progress -y
-
-      - name: Build installer
-        shell: pwsh
-        run: |
-          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          if (!(Test-Path $iscc)) {
-            $cmd = Get-Command iscc.exe -ErrorAction SilentlyContinue
-            if ($cmd) {
-              $iscc = $cmd.Source
-            }
-          }
-          if (!(Test-Path $iscc)) {
-            throw "ISCC.exe was not found after installing Inno Setup."
-          }
-          & $iscc installer\bostoncrew_sampler.iss
 
       - name: Validate installer
         shell: pwsh
@@ -123,7 +111,7 @@ jobs:
               gh release upload "$env:GITHUB_REF_NAME" $env:INSTALLER_PATH $env:PORTABLE_ARCHIVE_PATH --clobber
               if ($LASTEXITCODE -eq 0) { exit 0 }
             } else {
-              gh release create "$env:GITHUB_REF_NAME" $env:INSTALLER_PATH $env:PORTABLE_ARCHIVE_PATH --title "$env:GITHUB_REF_NAME" --notes "Windows build"
+              gh release create "$env:GITHUB_REF_NAME" $env:INSTALLER_PATH $env:PORTABLE_ARCHIVE_PATH --title "BOSTONCREW SAMPLER Free $env:GITHUB_REF_NAME" --notes-file $env:RELEASE_NOTES_PATH
               if ($LASTEXITCODE -eq 0) { exit 0 }
             }
             Start-Sleep -Seconds ($attempt * 30)

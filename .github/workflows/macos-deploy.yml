@@ -53,6 +53,7 @@ jobs:
       APPLE_ID: ${{ secrets.APPLE_ID }}
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      RELEASE_NOTES_PATH: docs/releases/free-v1.0.0.md
 
     steps:
       - name: Checkout
@@ -155,7 +156,7 @@ jobs:
             if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
               gh release upload "$GITHUB_REF_NAME" "$DMG_PATH" --clobber && exit 0
             else
-              gh release create "$GITHUB_REF_NAME" "$DMG_PATH" --title "$GITHUB_REF_NAME" --notes "macOS builds" && exit 0
+              gh release create "$GITHUB_REF_NAME" "$DMG_PATH" --title "BOSTONCREW SAMPLER Free $GITHUB_REF_NAME" --notes-file "$RELEASE_NOTES_PATH" && exit 0
               gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
                 && gh release upload "$GITHUB_REF_NAME" "$DMG_PATH" --clobber \
                 && exit 0

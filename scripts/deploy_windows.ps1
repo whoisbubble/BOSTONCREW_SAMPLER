@@ -7,9 +7,13 @@ param(
     [string]$FfmpegUrl = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip",
     [string]$CacheDir = "deploy\.cache",
     [string]$ArchivePath = "deploy\BOSTONCREW-SAMPLER-windows.zip",
+    [string]$InstallerScript = "installer\bostoncrew_sampler.iss",
+    [string]$InstallerPath = "deploy\BOSTONCREW-SAMPLER-windows-setup.exe",
+    [string]$InnoSetupCompiler = "",
     [string]$AppExeName = "BOSTONCREW SAMPLER.exe",
     [switch]$SkipFfmpeg,
-    [switch]$NoArchive
+    [switch]$NoArchive,
+    [switch]$BuildInstaller
 )
 
 $ErrorActionPreference = "Stop"
@@ -34,6 +38,16 @@ $ArchiveFullPath = if ([System.IO.Path]::IsPathRooted($ArchivePath)) {
     [System.IO.Path]::GetFullPath($ArchivePath)
 } else {
     [System.IO.Path]::GetFullPath((Join-Path $ProjectRoot $ArchivePath))
+}
+$InstallerScriptPath = if ([System.IO.Path]::IsPathRooted($InstallerScript)) {
+    [System.IO.Path]::GetFullPath($InstallerScript)
+} else {
+    [System.IO.Path]::GetFullPath((Join-Path $ProjectRoot $InstallerScript))
+}
+$InstallerFullPath = if ([System.IO.Path]::IsPathRooted($InstallerPath)) {
+    [System.IO.Path]::GetFullPath($InstallerPath)
+} else {
+    [System.IO.Path]::GetFullPath((Join-Path $ProjectRoot $InstallerPath))
 }
 
 function Test-IsUnderPath([string]$Child, [string]$Parent) {
@@ -172,6 +186,35 @@ function Find-Windeployqt([string]$RequestedQtBinDir, [string]$CurrentBuildPath)
     throw "windeployqt.exe was not found. Add Qt bin to PATH or pass -QtBinDir C:\Qt\6.x.x\mingw_64\bin."
 }
 
+function Find-Iscc([string]$RequestedCompiler) {
+    if ($RequestedCompiler -ne "") {
+        if (Test-Path $RequestedCompiler) {
+            return [System.IO.Path]::GetFullPath($RequestedCompiler)
+        }
+        throw "ISCC.exe was not found: $RequestedCompiler"
+    }
+
+    $fromPath = Get-Command "ISCC.exe" -ErrorAction SilentlyContinue
+    if ($fromPath) {
+        return $fromPath.Source
+    }
+
+    $candidates = @(
+        "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+        "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+        "${env:ProgramFiles(x86)}\Inno Setup 5\ISCC.exe",
+        "$env:ProgramFiles\Inno Setup 5\ISCC.exe"
+    )
+
+    foreach ($candidate in $candidates) {
+        if ($candidate -and (Test-Path $candidate)) {
+            return [System.IO.Path]::GetFullPath($candidate)
+        }
+    }
+
+    throw "ISCC.exe was not found. Install Inno Setup 6 or pass -InnoSetupCompiler C:\Path\To\ISCC.exe."
+}
+
 function Find-ToolInDir([string]$Root, [string]$FileName) {
     if ($Root -eq "" -or -not (Test-Path $Root)) {
         return $null
@@ -265,6 +308,12 @@ if (-not (Test-IsUnderPath $CachePath $ProjectRoot)) {
 if (-not $NoArchive -and -not (Test-IsUnderPath $ArchiveFullPath $ProjectRoot)) {
     throw "ArchivePath must be inside the project folder for this deploy script: $ArchiveFullPath"
 }
+if ($BuildInstaller -and -not (Test-IsUnderPath $InstallerFullPath $ProjectRoot)) {
+    throw "InstallerPath must be inside the project folder for this deploy script: $InstallerFullPath"
+}
+if ($BuildInstaller -and -not (Test-IsUnderPath $InstallerScriptPath $ProjectRoot)) {
+    throw "InstallerScript must be inside the project folder for this deploy script: $InstallerScriptPath"
+}
 
 Add-DefaultQtToolPaths $QtBinDir
 $cmake = Find-Cmake $BuildPath
@@ -324,6 +373,26 @@ if (-not $NoArchive) {
     Compress-Archive -Path (Join-Path $DeployPath "*") -DestinationPath $ArchiveFullPath -Force
 }
 
+if ($BuildInstaller) {
+    if (-not (Test-Path $InstallerScriptPath)) {
+        throw "Installer script was not found: $InstallerScriptPath"
+    }
+
+    $installerOutputDir = [System.IO.Path]::GetDirectoryName($InstallerFullPath)
+    $installerBaseName = [System.IO.Path]::GetFileNameWithoutExtension($InstallerFullPath)
+    New-Item -ItemType Directory -Force -Path $installerOutputDir | Out-Null
+    if (Test-Path $InstallerFullPath) {
+        Remove-Item -LiteralPath $InstallerFullPath -Force
+    }
+
+    $iscc = Find-Iscc $InnoSetupCompiler
+    Invoke-NativeCommand $iscc "/O$installerOutputDir" "/F$installerBaseName" $InstallerScriptPath
+
+    if (-not (Test-Path $InstallerFullPath)) {
+        throw "Installer was not created: $InstallerFullPath"
+    }
+}
+
 Write-Host ""
 Write-Host "Deployment is ready:"
 Write-Host $DeployPath
@@ -334,4 +403,8 @@ if (-not $SkipFfmpeg) {
 if (-not $NoArchive) {
     Write-Host "Archive is ready:"
     Write-Host $ArchiveFullPath
+}
+if ($BuildInstaller) {
+    Write-Host "Installer is ready:"
+    Write-Host $InstallerFullPath
 }

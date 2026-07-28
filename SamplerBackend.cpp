@@ -414,6 +414,16 @@ void SlideListModel::removeAt(int row)
     endRemoveRows();
 }
 
+void SlideListModel::moveItem(int from, int to)
+{
+    if (from < 0 || from >= m_items.count() || to < 0 || to >= m_items.count() || from == to)
+        return;
+    const int destination = from < to ? to + 1 : to;
+    beginMoveRows({}, from, from, {}, destination);
+    m_items.move(from, to);
+    endMoveRows();
+}
+
 void SlideListModel::notifyChanged(int row)
 {
     if (row < 0 || row >= m_items.count())
@@ -785,8 +795,10 @@ void SamplerBackend::playFixedSample(int index, bool advanceSlide)
         return;
     }
     if (startPlayback(&m_fixedSamples, index, true)) {
-        if (index == 1)
+        if (index == 1) {
             sendHostMessage("RIGHT");
+            playAutoJingle();
+        }
         if (index == 2)
             sendHostMessage("WRONG");
         if (advanceSlide)
@@ -885,7 +897,7 @@ void SamplerBackend::playPreviewMedia(int previewIndex, int action)
     if (action == 1 && m_samples.rowCount() > 0)
         startPlayback(&m_samples, 0, true);
     else if (action == 2)
-        startPlayback(&m_fixedSamples, 1, true);
+        playFixedSample(1);
 }
 
 void SamplerBackend::closeStage()
@@ -958,6 +970,16 @@ void SamplerBackend::updateLibrarySlide(int index, const QString &folderName, co
     slide->isSampleNeed = slide->hasSample;
 
     m_librarySlides.notifyChanged(index);
+    refreshAssignedSlides();
+    saveSlides();
+    saveQuickSlides();
+}
+
+void SamplerBackend::moveLibrarySlide(int from, int to)
+{
+    if (from < 0 || from >= m_librarySlides.rowCount() || to < 0 || to >= m_librarySlides.rowCount() || from == to)
+        return;
+    m_librarySlides.moveItem(from, to);
     refreshAssignedSlides();
     saveSlides();
     saveQuickSlides();
@@ -1227,6 +1249,7 @@ void SamplerBackend::saveAll()
     saveSamples();
     saveSlides();
     saveQuickSlides();
+    saveAutoJinglesConfig();
 }
 
 
@@ -1298,6 +1321,186 @@ void SamplerBackend::toggleStageVideoPause()
 void SamplerBackend::restartStageVideo()
 {
     emit stageVideoRestartRequested();
+}
+
+qint64 SamplerBackend::stageVideoPosition() const { return m_stageVideoPosition; }
+qint64 SamplerBackend::stageVideoDuration() const { return m_stageVideoDuration; }
+
+QString SamplerBackend::formatMs(qint64 ms)
+{
+    if (ms <= 0)
+        return "00:00";
+    qint64 totalSec = ms / 1000;
+    qint64 hours = totalSec / 3600;
+    qint64 minutes = (totalSec % 3600) / 60;
+    qint64 seconds = totalSec % 60;
+    if (hours > 0) {
+        return QString("%1:%2:%3")
+            .arg(hours, 2, 10, QChar('0'))
+            .arg(minutes, 2, 10, QChar('0'))
+            .arg(seconds, 2, 10, QChar('0'));
+    }
+    return QString("%1:%2")
+        .arg(minutes, 2, 10, QChar('0'))
+        .arg(seconds, 2, 10, QChar('0'));
+}
+
+QString SamplerBackend::stageVideoTimeText() const
+{
+    if (!m_stageActive || !currentMediaIsVideo() || m_stageVideoDuration <= 0)
+        return QString();
+
+    const QString posStr = formatMs(m_stageVideoPosition);
+    const QString durStr = formatMs(m_stageVideoDuration);
+    const qint64 remMs = qMax<qint64>(0, m_stageVideoDuration - m_stageVideoPosition);
+    const QString remStr = formatMs(remMs);
+
+    return QString("%1 / %2 (-%3)").arg(posStr, durStr, remStr);
+}
+
+void SamplerBackend::updateStageVideoTime(qint64 position, qint64 duration)
+{
+    if (m_stageVideoPosition == position && m_stageVideoDuration == duration)
+        return;
+    m_stageVideoPosition = position;
+    m_stageVideoDuration = duration;
+    emit stageVideoTimeChanged();
+}
+
+bool SamplerBackend::autoJinglesEnabled() const { return m_autoJinglesEnabled; }
+
+void SamplerBackend::setAutoJinglesEnabled(bool enabled)
+{
+    if (m_autoJinglesEnabled == enabled)
+        return;
+    m_autoJinglesEnabled = enabled;
+    emit autoJinglesStateChanged();
+    saveAutoJinglesConfig();
+}
+
+QString SamplerBackend::autoJinglesFolder() const { return m_autoJinglesFolder; }
+
+void SamplerBackend::setAutoJinglesFolder(const QString &folder)
+{
+    const QString trimmed = folder.trimmed();
+    if (m_autoJinglesFolder == trimmed)
+        return;
+    m_autoJinglesFolder = trimmed;
+    emit autoJinglesStateChanged();
+    saveAutoJinglesConfig();
+}
+
+QString SamplerBackend::autoJinglesFolderName() const
+{
+    if (m_autoJinglesFolder.isEmpty())
+        return QString();
+    return QFileInfo(m_autoJinglesFolder).fileName();
+}
+
+void SamplerBackend::selectAutoJinglesFolder()
+{
+    const QString initialDir = m_autoJinglesFolder.isEmpty() ? baseDir() : absolutePath(m_autoJinglesFolder);
+    const QString dirPath = QFileDialog::getExistingDirectory(nullptr, "Select Auto-Jingles folder", initialDir);
+    if (dirPath.isEmpty())
+        return;
+    setAutoJinglesFolder(storagePath(dirPath));
+    setStatus("Auto-jingles folder set: " + QFileInfo(dirPath).fileName());
+}
+
+void SamplerBackend::openAutoJinglesFolder()
+{
+    QString folder = absolutePath(m_autoJinglesFolder);
+    if (folder.isEmpty()) {
+        folder = QDir(baseDir()).absoluteFilePath("Content/AutoJingles");
+        QDir().mkpath(folder);
+        setAutoJinglesFolder("Content/AutoJingles");
+    }
+    if (QDir(folder).exists()) {
+        QDesktopServices::openUrl(QUrl::fromLocalFile(folder));
+    } else {
+        setStatus("Auto-jingles folder does not exist.");
+    }
+}
+
+void SamplerBackend::toggleAutoJinglesEnabled()
+{
+    setAutoJinglesEnabled(!m_autoJinglesEnabled);
+    setStatus(m_autoJinglesEnabled ? "Auto-jingles mode enabled." : "Auto-jingles mode disabled.");
+}
+
+void SamplerBackend::playStandaloneAudio(const QString &filePath, double volume)
+{
+    const QString path = absolutePath(filePath);
+    if (!QFile::exists(path))
+        return;
+
+    SampleData sample;
+    sample.name = QFileInfo(path).fileName();
+    sample.path = storagePath(path);
+    sample.volume = volume;
+
+    QList<SampleData> values;
+    values.append(sample);
+    auto *temporaryModel = new SampleListModel(this);
+    temporaryModel->reset(values);
+    if (!startPlayback(temporaryModel, 0, false, temporaryModel))
+        temporaryModel->deleteLater();
+}
+
+void SamplerBackend::playAutoJingle()
+{
+    if (!m_autoJinglesEnabled)
+        return;
+
+    QString folderPath = absolutePath(m_autoJinglesFolder);
+    if (folderPath.isEmpty() || !QDir(folderPath).exists()) {
+        folderPath = QDir(baseDir()).absoluteFilePath("Content/AutoJingles");
+        QDir().mkpath(folderPath);
+        setAutoJinglesFolder("Content/AutoJingles");
+    }
+
+    QDir dir(folderPath);
+    QStringList filters = {"*.mp3", "*.wav", "*.m4a", "*.ogg", "*.flac"};
+    QFileInfoList fileList = dir.entryInfoList(filters, QDir::Files | QDir::NoSymLinks);
+
+    if (fileList.isEmpty()) {
+        setStatus("Auto-jingles: no audio files in folder.");
+        return;
+    }
+
+    int chosenIndex = 0;
+    if (fileList.count() > 1) {
+        do {
+            chosenIndex = QRandomGenerator::global()->bounded(fileList.count());
+        } while (chosenIndex == m_lastAutoJingleIndex);
+    }
+    m_lastAutoJingleIndex = chosenIndex;
+
+    const QString chosenPath = fileList.at(chosenIndex).absoluteFilePath();
+    setStatus("Playing auto-jingle: " + fileList.at(chosenIndex).fileName());
+    playStandaloneAudio(chosenPath);
+}
+
+void SamplerBackend::loadAutoJinglesConfig()
+{
+    const QJsonDocument doc = readJsonDocument(QDir(saveDir()).absoluteFilePath("autojingles.json"));
+    if (doc.isObject()) {
+        const QJsonObject obj = doc.object();
+        m_autoJinglesEnabled = obj.value("enabled").toBool(false);
+        m_autoJinglesFolder = obj.value("folder").toString("Content/AutoJingles");
+    } else {
+        m_autoJinglesEnabled = false;
+        m_autoJinglesFolder = "Content/AutoJingles";
+    }
+    emit autoJinglesStateChanged();
+}
+
+void SamplerBackend::saveAutoJinglesConfig()
+{
+    QJsonObject obj;
+    obj.insert("enabled", m_autoJinglesEnabled);
+    obj.insert("folder", m_autoJinglesFolder);
+    writeJsonDocument(QDir(saveDir()).absoluteFilePath("autojingles.json"), QJsonDocument(obj));
 }
 
 QString SamplerBackend::absolutePath(const QString &storedPath) const
@@ -1700,6 +1903,7 @@ void SamplerBackend::loadAll()
     loadSamples();
     loadSlides();
     loadQuickSlides();
+    loadAutoJinglesConfig();
 }
 
 void SamplerBackend::loadSamples()

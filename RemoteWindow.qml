@@ -127,6 +127,17 @@ Window {
                             font.pixelSize: 10
                             elide: Text.ElideRight
                         }
+
+                        Text {
+                            Layout.fillWidth: true
+                            visible: remoteWindow.backend.stageActive && remoteWindow.backend.currentMediaIsVideo && remoteWindow.backend.stageVideoTimeText !== ""
+                            text: remoteWindow.backend.stageVideoTimeText
+                            color: AppTheme.accent
+                            font.family: AppTheme.fontFamily
+                            font.pixelSize: 12
+                            font.weight: Font.DemiBold
+                            elide: Text.ElideRight
+                        }
                     }
                 }
             }

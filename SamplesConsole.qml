@@ -220,6 +220,91 @@ AppPanel {
                         ? "Switch to live mode"
                         : "Switch to edit mode"
                 }
+
+                Rectangle {
+                    width: 52
+                    height: 52
+                    radius: 8
+                    color: autoJinglesFolderMouse.pressed
+                        ? AppTheme.tilePressed
+                        : (autoJinglesFolderMouse.containsMouse ? AppTheme.tileHover : AppTheme.tile)
+                    border.color: samplerConsole.backend.autoJinglesFolder !== "" ? AppTheme.accent : AppTheme.border
+                    border.width: 1
+
+                    AppIcon {
+                        anchors.centerIn: parent
+                        width: 22
+                        height: 22
+                        name: "folder"
+                        lineColor: samplerConsole.backend.autoJinglesFolder !== "" ? AppTheme.accent : AppTheme.text
+                    }
+
+                    MouseArea {
+                        id: autoJinglesFolderMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: (mouse) => {
+                            if (mouse.button === Qt.RightButton) {
+                                samplerConsole.backend.openAutoJinglesFolder()
+                            } else {
+                                samplerConsole.backend.selectAutoJinglesFolder()
+                            }
+                        }
+                    }
+
+                    ToolTip.visible: autoJinglesFolderMouse.containsMouse
+                    ToolTip.delay: 650
+                    ToolTip.timeout: 6000
+                    ToolTip.text: "Папка автоотбивок: " + (samplerConsole.backend.autoJinglesFolderName !== "" ? samplerConsole.backend.autoJinglesFolderName : "Content/AutoJingles") + "\n(ЛКМ: выбрать папку, ПКМ: открыть в проводнике)"
+                }
+
+                Rectangle {
+                    width: 52
+                    height: 52
+                    radius: 8
+                    color: autoJinglesToggleMouse.pressed
+                        ? AppTheme.tilePressed
+                        : (samplerConsole.backend.autoJinglesEnabled
+                            ? AppTheme.primary
+                            : (autoJinglesToggleMouse.containsMouse ? AppTheme.tileHover : AppTheme.tile))
+                    border.color: samplerConsole.backend.autoJinglesEnabled ? AppTheme.accent : AppTheme.border
+                    border.width: 1
+
+                    AppIcon {
+                        anchors.centerIn: parent
+                        width: 22
+                        height: 22
+                        name: "cue"
+                        lineColor: samplerConsole.backend.autoJinglesEnabled ? AppTheme.text : AppTheme.muted
+                    }
+
+                    Rectangle {
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: 5
+                        width: 7
+                        height: 7
+                        radius: 4
+                        color: samplerConsole.backend.autoJinglesEnabled ? AppTheme.success : AppTheme.muted
+                    }
+
+                    MouseArea {
+                        id: autoJinglesToggleMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: samplerConsole.backend.toggleAutoJinglesEnabled()
+                    }
+
+                    ToolTip.visible: autoJinglesToggleMouse.containsMouse
+                    ToolTip.delay: 650
+                    ToolTip.timeout: 6000
+                    ToolTip.text: samplerConsole.backend.autoJinglesEnabled
+                        ? "Автоотбивки: ВКЛ (при правильном ответе играет случайная песня)"
+                        : "Автоотбивки: ВЫКЛ"
+                }
             }
         }
     }

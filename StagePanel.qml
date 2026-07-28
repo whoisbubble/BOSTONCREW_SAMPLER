@@ -76,6 +76,19 @@ AppPanel {
                 if (source !== "")
                     play()
             }
+            onPositionChanged: {
+                if (!panel.backend.currentMediaRepeats && duration > 0 && playbackState === MediaPlayer.PlayingState) {
+                    var prevThreshold = duration > 400 ? 150 : 50
+                    if (position >= duration - prevThreshold) {
+                        pause()
+                    }
+                }
+            }
+            onMediaStatusChanged: {
+                if (mediaStatus === MediaPlayer.EndOfMedia && !panel.backend.currentMediaRepeats) {
+                    pause()
+                }
+            }
         }
 
         VideoOutput {

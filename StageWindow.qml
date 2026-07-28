@@ -348,6 +348,21 @@ Window {
                 if (source !== "")
                     play()
             }
+
+            onPositionChanged: {
+                if (!surface.backgroundRepeats && duration > 0 && playbackState === MediaPlayer.PlayingState) {
+                    var bgThreshold = duration > 400 ? 150 : 50
+                    if (position >= duration - bgThreshold) {
+                        pause()
+                    }
+                }
+            }
+
+            onMediaStatusChanged: {
+                if (mediaStatus === MediaPlayer.EndOfMedia && !surface.backgroundRepeats) {
+                    pause()
+                }
+            }
         }
 
         VideoOutput {
@@ -403,6 +418,30 @@ Window {
             onSourceChanged: {
                 if (source !== "")
                     play()
+            }
+
+            onPositionChanged: {
+                if (surface.active && surface.isVideo) {
+                    stage.backend.updateStageVideoTime(position, duration)
+                }
+                if (!surface.repeats && duration > 0 && playbackState === MediaPlayer.PlayingState) {
+                    var mainThreshold = duration > 400 ? 150 : 50
+                    if (position >= duration - mainThreshold) {
+                        pause()
+                    }
+                }
+            }
+
+            onDurationChanged: {
+                if (surface.active && surface.isVideo) {
+                    stage.backend.updateStageVideoTime(position, duration)
+                }
+            }
+
+            onMediaStatusChanged: {
+                if (mediaStatus === MediaPlayer.EndOfMedia && !surface.repeats) {
+                    pause()
+                }
             }
         }
 

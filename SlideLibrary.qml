@@ -82,6 +82,14 @@ Item {
             contentHeight: slideColumn.height
             boundsBehavior: Flickable.StopAtBounds
 
+            WheelHandler {
+                target: flick
+                onWheel: (event) => {
+                    var dy = event.angleDelta.y
+                    flick.contentY = Math.max(0, Math.min(Math.max(0, flick.contentHeight - flick.height), flick.contentY - dy))
+                }
+            }
+
             Column {
                 id: slideColumn
 
@@ -212,7 +220,7 @@ Item {
                                         IconButton {
                                             side: 28
                                             iconSize: 14
-                                            iconName: "image"
+                                            iconName: "plus"
                                             enabled: row.available
                                             tip: "Add media"
                                             onClicked: library.backend.addMediaToLibrarySlide(row.index)
@@ -239,6 +247,42 @@ Item {
                                             }
                                         }
 
+                                        IconButton {
+                                            side: 28
+                                            iconSize: 14
+                                            iconName: "menu"
+                                            tip: "Drag to reorder slide"
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.SizeAllCursor
+                                                preventStealing: true
+
+                                                onPositionChanged: (mouse) => {
+                                                    if (pressed) {
+                                                        var posInCol = mapToItem(slideColumn, mouse.x, mouse.y)
+                                                        var targetIdx = -1
+                                                        var accumulatedY = 0
+
+                                                        for (var i = 0; i < slideColumn.children.length; ++i) {
+                                                            var child = slideColumn.children[i]
+                                                            if (child && child.visible !== false && child.height > 0 && child.index !== undefined) {
+                                                                if (posInCol.y >= accumulatedY && posInCol.y <= accumulatedY + child.height + slideColumn.spacing) {
+                                                                    targetIdx = child.index
+                                                                    break
+                                                                }
+                                                                accumulatedY += child.height + slideColumn.spacing
+                                                            }
+                                                        }
+
+                                                        if (targetIdx >= 0 && targetIdx !== row.index) {
+                                                            library.backend.moveLibrarySlide(row.index, targetIdx)
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+
                                         Item { Layout.fillWidth: true }
                                     }
                                 }
@@ -255,6 +299,14 @@ Item {
                                 contentHeight: height
                                 boundsBehavior: Flickable.StopAtBounds
                                 flickableDirection: Flickable.HorizontalFlick
+
+                                WheelHandler {
+                                    target: mediaFlick
+                                    onWheel: (event) => {
+                                        var dy = event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x
+                                        mediaFlick.contentX = Math.max(0, Math.min(Math.max(0, mediaFlick.contentWidth - mediaFlick.width), mediaFlick.contentX - dy))
+                                    }
+                                }
 
                                 Row {
                                     id: mediaRow
@@ -290,6 +342,37 @@ Item {
 
                                             HoverHandler {
                                                 id: mediaHover
+                                            }
+
+                                            MouseArea {
+                                                id: mediaDragArea
+                                                anchors.fill: parent
+                                                anchors.rightMargin: 24
+                                                cursorShape: Qt.SizeAllCursor
+                                                preventStealing: true
+
+                                                onPositionChanged: (mouse) => {
+                                                    if (pressed) {
+                                                        var posInRow = mapToItem(mediaRow, mouse.x, mouse.y)
+                                                        var targetIdx = -1
+                                                        var accumulatedX = 0
+
+                                                        for (var i = 0; i < mediaRow.children.length; ++i) {
+                                                            var child = mediaRow.children[i]
+                                                            if (child && child.visible !== false && child.width > 0 && child.index !== undefined) {
+                                                                if (posInRow.x >= accumulatedX && posInRow.x <= accumulatedX + child.width + mediaRow.spacing) {
+                                                                    targetIdx = child.index
+                                                                    break
+                                                                }
+                                                                accumulatedX += child.width + mediaRow.spacing
+                                                            }
+                                                        }
+
+                                                        if (targetIdx >= 0 && targetIdx !== mediaTile.index) {
+                                                            library.backend.moveLibrarySlideMedia(row.index, mediaTile.index, targetIdx)
+                                                        }
+                                                    }
+                                                }
                                             }
 
                                             RowLayout {
@@ -368,12 +451,12 @@ Item {
                                                                 y: 20
                                                                 
                                                                 MenuItem {
-                                                                    text: "Сместить выше"
+                                                                    text: "Сместить назад"
                                                                     enabled: mediaTile.available && mediaTile.index > 0
                                                                     onTriggered: library.backend.moveLibrarySlideMedia(row.index, mediaTile.index, mediaTile.index - 1)
                                                                 }
                                                                 MenuItem {
-                                                                    text: "Сместить ниже"
+                                                                    text: "Сместить вперёд"
                                                                     enabled: mediaTile.available && mediaTile.index + 1 < row.mediaPaths.length && library.backend.slideMediaAvailable(row.index, mediaTile.index + 1)
                                                                     onTriggered: library.backend.moveLibrarySlideMedia(row.index, mediaTile.index, mediaTile.index + 1)
                                                                 }

@@ -125,6 +125,7 @@ public:
     void append(const SlideData &slide);
     void replace(int row, const SlideData &slide);
     void removeAt(int row);
+    void moveItem(int from, int to);
     void notifyChanged(int row);
     void clear();
 
@@ -195,6 +196,14 @@ class SamplerBackend final : public QObject
     Q_PROPERTY(QString statusMessage READ statusMessage NOTIFY statusMessageChanged)
     Q_PROPERTY(QString savedHost READ savedHost WRITE setSavedHost NOTIFY savedHostChanged)
 
+    Q_PROPERTY(qint64 stageVideoPosition READ stageVideoPosition NOTIFY stageVideoTimeChanged)
+    Q_PROPERTY(qint64 stageVideoDuration READ stageVideoDuration NOTIFY stageVideoTimeChanged)
+    Q_PROPERTY(QString stageVideoTimeText READ stageVideoTimeText NOTIFY stageVideoTimeChanged)
+
+    Q_PROPERTY(bool autoJinglesEnabled READ autoJinglesEnabled WRITE setAutoJinglesEnabled NOTIFY autoJinglesStateChanged)
+    Q_PROPERTY(QString autoJinglesFolder READ autoJinglesFolder WRITE setAutoJinglesFolder NOTIFY autoJinglesStateChanged)
+    Q_PROPERTY(QString autoJinglesFolderName READ autoJinglesFolderName NOTIFY autoJinglesStateChanged)
+
     Q_PROPERTY(int stageX READ stageX NOTIFY screenGeometryChanged)
     Q_PROPERTY(int stageY READ stageY NOTIFY screenGeometryChanged)
     Q_PROPERTY(int stageWidth READ stageWidth NOTIFY screenGeometryChanged)
@@ -228,6 +237,14 @@ public:
     int currentSlideIndex() const;
     int currentMediaIndex() const;
     bool connected() const;
+    qint64 stageVideoPosition() const;
+    qint64 stageVideoDuration() const;
+    QString stageVideoTimeText() const;
+    bool autoJinglesEnabled() const;
+    void setAutoJinglesEnabled(bool enabled);
+    QString autoJinglesFolder() const;
+    void setAutoJinglesFolder(const QString &folder);
+    QString autoJinglesFolderName() const;
     QString statusMessage() const;
     QString savedHost() const;
     void setSavedHost(const QString &host);
@@ -264,6 +281,7 @@ public:
 
     Q_INVOKABLE void createLibrarySlide();
     Q_INVOKABLE void updateLibrarySlide(int index, const QString &folderName, const QString &type);
+    Q_INVOKABLE void moveLibrarySlide(int from, int to);
     Q_INVOKABLE void deleteLibrarySlide(int index);
     Q_INVOKABLE void addMediaToLibrarySlide(int index);
     Q_INVOKABLE void addSampleToLibrarySlide(int index);
@@ -286,6 +304,12 @@ public:
     Q_INVOKABLE void sendHostMessage(const QString &message);
     Q_INVOKABLE void toggleStageVideoPause();
     Q_INVOKABLE void restartStageVideo();
+    Q_INVOKABLE void updateStageVideoTime(qint64 position, qint64 duration);
+
+    Q_INVOKABLE void selectAutoJinglesFolder();
+    Q_INVOKABLE void openAutoJinglesFolder();
+    Q_INVOKABLE void toggleAutoJinglesEnabled();
+    Q_INVOKABLE void playAutoJingle();
 
     Q_INVOKABLE QString absolutePath(const QString &storedPath) const;
     Q_INVOKABLE QString urlForPath(const QString &storedPath) const;
@@ -310,6 +334,8 @@ signals:
     void screenGeometryChanged();
     void stageVideoPauseRequested();
     void stageVideoRestartRequested();
+    void stageVideoTimeChanged();
+    void autoJinglesStateChanged();
 
 private:
     struct ActivePlayback {
@@ -396,6 +422,10 @@ private:
     QTimer m_hostConnectionTimer;
     QByteArray m_socketBuffer;
     QByteArray m_webSocketKey;
+    qint64 m_stageVideoPosition = 0;
+    qint64 m_stageVideoDuration = 0;
+
+    static QString formatMs(qint64 ms);
     QString m_hostCloseStatusOverride;
     bool m_webSocketReady = false;
 
@@ -408,6 +438,14 @@ private:
     QString m_nextMediaPath;
     QString m_statusMessage;
     QString m_savedHost;
+    void playStandaloneAudio(const QString &filePath, double volume = 1.0);
+    void loadAutoJinglesConfig();
+    void saveAutoJinglesConfig();
+
+    bool m_autoJinglesEnabled = false;
+    QString m_autoJinglesFolder;
+    int m_lastAutoJingleIndex = -1;
+
     int m_stageX = 80;
     int m_stageY = 80;
     int m_stageWidth = 1280;

@@ -238,6 +238,15 @@ Item {
                                         IconButton {
                                             side: 28
                                             iconSize: 14
+                                            iconName: "grid"
+                                            enabled: row.available
+                                            tip: "Проводник медиа слайда (отдельное окно)"
+                                            onClicked: slideExplorerWindow.openExplorer(row.index, row.folderName, library.Screen.desktopAvailableWidth / 2 - 500, library.Screen.desktopAvailableHeight / 2 - 350)
+                                        }
+
+                                        IconButton {
+                                            side: 28
+                                            iconSize: 14
                                             iconName: "trash"
                                             dangerFill: true
                                             tip: "Delete slide"
@@ -392,11 +401,12 @@ Item {
                                                     Image {
                                                         anchors.fill: parent
                                                         anchors.margins: 3
-                                                        source: mediaTile.isVideo || !library.backend ? "" : library.backend.urlForPath(mediaTile.modelData)
+                                                        source: library.backend ? library.backend.thumbnailUrl(mediaTile.modelData) : ""
                                                         sourceSize.width: width
                                                         sourceSize.height: height
                                                         fillMode: Image.PreserveAspectCrop
                                                         asynchronous: true
+                                                        cache: true
                                                         smooth: true
                                                         visible: source !== ""
                                                     }
@@ -512,5 +522,10 @@ Item {
                 }
             }
         }
+    }
+
+    SlideMediaExplorerWindow {
+        id: slideExplorerWindow
+        backend: library.backend
     }
 }

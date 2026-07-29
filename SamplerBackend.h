@@ -9,6 +9,7 @@
 #include <QMediaPlayer>
 #include <QObject>
 #include <QPointer>
+#include <QSet>
 #include <QScreen>
 #include <QTcpSocket>
 #include <QTimer>
@@ -283,16 +284,25 @@ public:
     Q_INVOKABLE void updateLibrarySlide(int index, const QString &folderName, const QString &type);
     Q_INVOKABLE void moveLibrarySlide(int from, int to);
     Q_INVOKABLE void deleteLibrarySlide(int index);
+    Q_INVOKABLE QStringList getSlideMediaPaths(int slideIndex) const;
     Q_INVOKABLE void addMediaToLibrarySlide(int index);
+    Q_INVOKABLE void addMediaToLibrarySlideAt(int index, int insertPos);
     Q_INVOKABLE void addSampleToLibrarySlide(int index);
     Q_INVOKABLE void moveLibrarySlideMedia(int slideIndex, int from, int to);
+    Q_INVOKABLE void moveLibrarySlideMediaBatch(int slideIndex, const QVariantList &sourceIndices, int targetIndex);
     Q_INVOKABLE void deleteLibrarySlideMedia(int slideIndex, int mediaIndex);
+    Q_INVOKABLE void deleteLibrarySlideMediaBatch(int slideIndex, const QVariantList &sourceIndices);
     Q_INVOKABLE void addSampleToLibrarySlideMedia(int slideIndex, int mediaIndex);
     Q_INVOKABLE void clearSampleFromLibrarySlideMedia(int slideIndex, int mediaIndex);
     Q_INVOKABLE void setLibrarySlideMediaRepeats(int slideIndex, int mediaIndex, bool repeats);
     Q_INVOKABLE void setLibrarySlideMediaBackground(int slideIndex, int mediaIndex);
     Q_INVOKABLE void clearLibrarySlideMediaBackground(int slideIndex, int mediaIndex);
     Q_INVOKABLE void setLibrarySlideMediaBackgroundRepeats(int slideIndex, int mediaIndex, bool repeats);
+    Q_INVOKABLE bool librarySlideMediaRepeats(int slideIndex, int mediaIndex) const;
+    Q_INVOKABLE bool librarySlideMediaHasCue(int slideIndex, int mediaIndex) const;
+    Q_INVOKABLE QString librarySlideMediaCueName(int slideIndex, int mediaIndex) const;
+    Q_INVOKABLE bool librarySlideMediaHasBackground(int slideIndex, int mediaIndex) const;
+    Q_INVOKABLE bool librarySlideMediaBackgroundRepeats(int slideIndex, int mediaIndex) const;
     Q_INVOKABLE void openLibraryFolder(int index);
     Q_INVOKABLE void openDataFolder();
     Q_INVOKABLE void saveAll();
@@ -313,6 +323,8 @@ public:
 
     Q_INVOKABLE QString absolutePath(const QString &storedPath) const;
     Q_INVOKABLE QString urlForPath(const QString &storedPath) const;
+    Q_INVOKABLE QString thumbnailUrl(const QString &mediaPath) const;
+    Q_INVOKABLE void generateVideoThumbnail(const QString &mediaPath);
     Q_INVOKABLE bool isVideoPath(const QString &path) const;
     Q_INVOKABLE bool hasSecondScreen() const;
     Q_INVOKABLE bool quickSlideAvailable(int index) const;
@@ -451,4 +463,5 @@ private:
     int m_stageWidth = 1280;
     int m_stageHeight = 720;
     QPointer<QScreen> m_stageScreen;
+    QSet<QString> m_pendingThumbnails;
 };

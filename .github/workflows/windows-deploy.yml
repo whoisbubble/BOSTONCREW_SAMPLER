@@ -23,7 +23,7 @@ jobs:
       CONFIGURATION: Release
       PORTABLE_ARCHIVE_PATH: deploy\BOSTONCREW-SAMPLER-windows-portable.zip
       INSTALLER_PATH: deploy\BOSTONCREW-SAMPLER-windows-setup.exe
-      RELEASE_NOTES_PATH: docs\releases\free-v1.0.2.md
+      RELEASE_NOTES_PATH: docs\releases\free-v1.0.3.md
 
     steps:
       - name: Checkout

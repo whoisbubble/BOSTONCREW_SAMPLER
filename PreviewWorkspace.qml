@@ -73,14 +73,18 @@ Item {
                         anchors.top: parent.top
                         height: workspace.previewHeight
                         color: AppTheme.inputBackground
+                        topLeftRadius: AppTheme.tileRadius
+                        topRightRadius: AppTheme.tileRadius
+                        clip: true
 
                         Image {
                             anchors.fill: parent
-                            source: tile.isVideo ? "" : tile.fileUrl
+                            source: workspace.backend ? workspace.backend.thumbnailUrl(tile.fileUrl) : ""
                             fillMode: Image.PreserveAspectCrop
                             sourceSize.width: Math.max(width * 1.5, 160)
                             sourceSize.height: Math.max(height * 1.5, 90)
                             asynchronous: true
+                            cache: true
                             visible: source !== ""
                         }
 

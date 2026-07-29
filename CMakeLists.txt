@@ -78,6 +78,7 @@ qt_add_qml_module(appCPlusEventSampler
         SlideDialog.qml
         SlideLibrary.qml
         SlideManagerWindow.qml
+        SlideMediaExplorerWindow.qml
         StagePanel.qml
         StageWindow.qml
         TextButton.qml

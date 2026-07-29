@@ -21,7 +21,10 @@
 #include <QRegularExpression>
 #include <QScreen>
 #include <QSaveFile>
+#include <QCryptographicHash>
 #include <QStandardPaths>
+#include <QVideoSink>
+#include <QVideoFrame>
 
 namespace {
 constexpr int QuickSlideCount = 12;
@@ -1004,7 +1007,20 @@ void SamplerBackend::deleteLibrarySlide(int index)
     saveQuickSlides();
 }
 
+QStringList SamplerBackend::getSlideMediaPaths(int slideIndex) const
+{
+    const SlideData *slide = m_librarySlides.at(slideIndex);
+    if (!slide)
+        return QStringList();
+    return slide->mediaPaths;
+}
+
 void SamplerBackend::addMediaToLibrarySlide(int index)
+{
+    addMediaToLibrarySlideAt(index, -1);
+}
+
+void SamplerBackend::addMediaToLibrarySlideAt(int index, int insertPos)
 {
     SlideData *slide = m_librarySlides.at(index);
     if (!slide)
@@ -1033,9 +1049,12 @@ void SamplerBackend::addMediaToLibrarySlide(int index)
         return;
     }
 
-    for (const QString &path : newPaths) {
-        slide->mediaPaths.append(path);
-        slide->mediaCues.append(SlideData::MediaCue{});
+    if (insertPos < 0 || insertPos > slide->mediaPaths.count())
+        insertPos = slide->mediaPaths.count();
+
+    for (int k = 0; k < newPaths.count(); ++k) {
+        slide->mediaPaths.insert(insertPos + k, newPaths.at(k));
+        slide->mediaCues.insert(insertPos + k, SlideData::MediaCue{});
     }
     ensureMediaCueCount(*slide);
     m_librarySlides.notifyChanged(index);
@@ -1069,6 +1088,101 @@ void SamplerBackend::moveLibrarySlideMedia(int slideIndex, int from, int to)
     refreshAssignedSlides();
     saveSlides();
     saveQuickSlides();
+}
+
+void SamplerBackend::moveLibrarySlideMediaBatch(int slideIndex, const QVariantList &sourceIndices, int targetIndex)
+{
+    SlideData *slide = m_librarySlides.at(slideIndex);
+    if (!slide || slide->mediaPaths.isEmpty() || sourceIndices.isEmpty())
+        return;
+
+    ensureMediaCueCount(*slide);
+    const int total = slide->mediaPaths.count();
+
+    QList<int> sortedIndices;
+    for (const QVariant &v : sourceIndices) {
+        int idx = v.toInt();
+        if (idx >= 0 && idx < total && !sortedIndices.contains(idx))
+            sortedIndices.append(idx);
+    }
+    std::sort(sortedIndices.begin(), sortedIndices.end());
+    if (sortedIndices.isEmpty())
+        return;
+
+    targetIndex = qBound(0, targetIndex, total);
+
+    QStringList movingPaths;
+    QList<SlideData::MediaCue> movingCues;
+    for (int idx : sortedIndices) {
+        movingPaths.append(slide->mediaPaths.at(idx));
+        movingCues.append(slide->mediaCues.at(idx));
+    }
+
+    QStringList remainingPaths;
+    QList<SlideData::MediaCue> remainingCues;
+    int insertPos = 0;
+    for (int i = 0; i < total; ++i) {
+        if (i == targetIndex)
+            insertPos = remainingPaths.count();
+        if (!sortedIndices.contains(i)) {
+            remainingPaths.append(slide->mediaPaths.at(i));
+            remainingCues.append(slide->mediaCues.at(i));
+        }
+    }
+    if (targetIndex >= total)
+        insertPos = remainingPaths.count();
+
+    for (int i = 0; i < movingPaths.count(); ++i) {
+        remainingPaths.insert(insertPos + i, movingPaths.at(i));
+        remainingCues.insert(insertPos + i, movingCues.at(i));
+    }
+
+    slide->mediaPaths = remainingPaths;
+    slide->mediaCues = remainingCues;
+
+    ensureMediaCueCount(*slide);
+    m_librarySlides.notifyChanged(slideIndex);
+    refreshAssignedSlides();
+    saveSlides();
+    saveQuickSlides();
+    setStatus(QString("Moved %1 media items.").arg(movingPaths.count()));
+}
+
+void SamplerBackend::deleteLibrarySlideMediaBatch(int slideIndex, const QVariantList &sourceIndices)
+{
+    SlideData *slide = m_librarySlides.at(slideIndex);
+    if (!slide || slide->mediaPaths.isEmpty() || sourceIndices.isEmpty())
+        return;
+
+    ensureMediaCueCount(*slide);
+    const int total = slide->mediaPaths.count();
+
+    QList<int> sortedIndices;
+    for (const QVariant &v : sourceIndices) {
+        int idx = v.toInt();
+        if (idx >= 0 && idx < total && !sortedIndices.contains(idx))
+            sortedIndices.append(idx);
+    }
+    std::sort(sortedIndices.begin(), sortedIndices.end());
+    if (sortedIndices.isEmpty())
+        return;
+
+    for (int i = sortedIndices.count() - 1; i >= 0; --i) {
+        int idx = sortedIndices.at(i);
+        cleanupStoredFile(slide->mediaPaths.takeAt(idx));
+        const SlideData::MediaCue cue = slide->mediaCues.takeAt(idx);
+        if (cue.hasSample)
+            cleanupStoredFile(cue.sample.path);
+        if (!cue.backgroundMediaPath.isEmpty())
+            cleanupStoredFile(cue.backgroundMediaPath);
+    }
+
+    ensureMediaCueCount(*slide);
+    m_librarySlides.notifyChanged(slideIndex);
+    refreshAssignedSlides();
+    saveSlides();
+    saveQuickSlides();
+    setStatus(QString("Removed %1 media items.").arg(sortedIndices.count()));
 }
 
 void SamplerBackend::deleteLibrarySlideMedia(int slideIndex, int mediaIndex)
@@ -1520,6 +1634,99 @@ QString SamplerBackend::urlForPath(const QString &storedPath) const
 {
     const QString path = absolutePath(storedPath);
     return path.isEmpty() ? QString() : QUrl::fromLocalFile(path).toString();
+}
+
+QString SamplerBackend::thumbnailUrl(const QString &mediaPath) const
+{
+    if (mediaPath.isEmpty())
+        return QString();
+
+    QString pathStr = mediaPath;
+    if (pathStr.startsWith("file:///", Qt::CaseInsensitive))
+        pathStr = QUrl(pathStr).toLocalFile();
+    else if (pathStr.startsWith("file://", Qt::CaseInsensitive))
+        pathStr = QUrl(pathStr).toLocalFile();
+
+    const QString absPath = absolutePath(pathStr);
+    if (absPath.isEmpty())
+        return QString();
+
+    if (!isVideoPath(absPath))
+        return QUrl::fromLocalFile(absPath).toString();
+
+    const QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/bostoncrew_thumbs";
+    QDir().mkpath(cacheDir);
+
+    const QByteArray hash = QCryptographicHash::hash(absPath.toUtf8(), QCryptographicHash::Md5).toHex();
+    const QString thumbPath = cacheDir + "/" + hash + ".jpg";
+
+    if (QFile::exists(thumbPath))
+        return QUrl::fromLocalFile(thumbPath).toString();
+
+    const_cast<SamplerBackend*>(this)->generateVideoThumbnail(absPath);
+    return QString();
+}
+
+void SamplerBackend::generateVideoThumbnail(const QString &mediaPath)
+{
+    const QString absPath = absolutePath(mediaPath);
+    if (!isVideoPath(absPath) || absPath.isEmpty())
+        return;
+
+    const QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/bostoncrew_thumbs";
+    QDir().mkpath(cacheDir);
+
+    const QByteArray hash = QCryptographicHash::hash(absPath.toUtf8(), QCryptographicHash::Md5).toHex();
+    const QString thumbPath = cacheDir + "/" + hash + ".jpg";
+
+    if (QFile::exists(thumbPath) || m_pendingThumbnails.contains(thumbPath))
+        return;
+
+    m_pendingThumbnails.insert(thumbPath);
+
+    QPointer<QMediaPlayer> player = new QMediaPlayer(this);
+    QPointer<QVideoSink> sink = new QVideoSink(player.data());
+    player->setVideoSink(sink.data());
+
+    QPointer<QAudioOutput> dummyAudio = new QAudioOutput(player.data());
+    dummyAudio->setMuted(true);
+    player->setAudioOutput(dummyAudio.data());
+
+    auto cleanup = [this, player, thumbPath]() {
+        if (player) {
+            player->stop();
+            player->deleteLater();
+        }
+        m_pendingThumbnails.remove(thumbPath);
+    };
+
+    QTimer::singleShot(3000, this, [cleanup]() {
+        cleanup();
+    });
+
+    connect(player.data(), &QMediaPlayer::errorOccurred, this, [cleanup](QMediaPlayer::Error, const QString &) {
+        cleanup();
+    });
+
+    connect(sink.data(), &QVideoSink::videoFrameChanged, this, [this, cleanup, thumbPath](const QVideoFrame &frame) {
+        if (!frame.isValid())
+            return;
+
+        QImage img = frame.toImage();
+        if (!img.isNull()) {
+            QImage scaled = img.scaled(320, 180, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+            scaled.save(thumbPath, "JPG", 82);
+            QMetaObject::invokeMethod(this, [this]() {
+                m_librarySlides.notifyChanged(0);
+                refreshAssignedSlides();
+                emit stageChanged();
+            }, Qt::QueuedConnection);
+        }
+        cleanup();
+    });
+
+    player->setSource(QUrl::fromLocalFile(absPath));
+    player->play();
 }
 
 bool SamplerBackend::isVideoPath(const QString &path) const
@@ -2329,8 +2536,8 @@ void SamplerBackend::showSlideMedia()
     if (!slide || m_currentMediaIndex < 0 || m_currentMediaIndex >= mediaCount) {
         m_currentMediaPath.clear();
         m_nextMediaPath.clear();
-        updatePreviewModel();
         emit stageChanged();
+        updatePreviewModel();
         return;
     }
 
@@ -2338,9 +2545,49 @@ void SamplerBackend::showSlideMedia()
     m_nextMediaPath = m_currentMediaIndex + 1 < mediaCount
         ? absolutePath(slide->mediaPaths.at(m_currentMediaIndex + 1))
         : QString();
+    emit stageChanged();
     playMediaCue(*slide, m_currentMediaIndex);
     updatePreviewModel();
-    emit stageChanged();
+}
+
+bool SamplerBackend::librarySlideMediaRepeats(int slideIndex, int mediaIndex) const
+{
+    const SlideData *slide = m_librarySlides.at(slideIndex);
+    if (!slide || mediaIndex < 0 || mediaIndex >= slide->mediaCues.count())
+        return false;
+    return slide->mediaCues.at(mediaIndex).repeats;
+}
+
+bool SamplerBackend::librarySlideMediaHasCue(int slideIndex, int mediaIndex) const
+{
+    const SlideData *slide = m_librarySlides.at(slideIndex);
+    if (!slide || mediaIndex < 0 || mediaIndex >= slide->mediaCues.count())
+        return false;
+    return slide->mediaCues.at(mediaIndex).hasSample;
+}
+
+QString SamplerBackend::librarySlideMediaCueName(int slideIndex, int mediaIndex) const
+{
+    const SlideData *slide = m_librarySlides.at(slideIndex);
+    if (!slide || mediaIndex < 0 || mediaIndex >= slide->mediaCues.count())
+        return QString();
+    return slide->mediaCues.at(mediaIndex).sample.name;
+}
+
+bool SamplerBackend::librarySlideMediaHasBackground(int slideIndex, int mediaIndex) const
+{
+    const SlideData *slide = m_librarySlides.at(slideIndex);
+    if (!slide || mediaIndex < 0 || mediaIndex >= slide->mediaCues.count())
+        return false;
+    return !slide->mediaCues.at(mediaIndex).backgroundMediaPath.isEmpty();
+}
+
+bool SamplerBackend::librarySlideMediaBackgroundRepeats(int slideIndex, int mediaIndex) const
+{
+    const SlideData *slide = m_librarySlides.at(slideIndex);
+    if (!slide || mediaIndex < 0 || mediaIndex >= slide->mediaCues.count())
+        return false;
+    return slide->mediaCues.at(mediaIndex).backgroundRepeats;
 }
 
 void SamplerBackend::updatePreviewModel()

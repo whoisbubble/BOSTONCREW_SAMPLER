@@ -696,6 +696,8 @@ void SamplerBackend::playSample(int index, bool advanceSlide)
     if (m_settingsMode)
         return;
     startPlayback(&m_samples, index, true);
+    if (index == 0)
+        sendHostMessage("NEXT_SLIDE");
     if (advanceSlide)
         nextSlide();
 }
@@ -846,6 +848,7 @@ void SamplerBackend::playQuickSlide(int index)
     m_currentSlideIndex = index;
     m_currentMediaIndex = 0;
     m_stageActive = true;
+    sendHostMessage("NEXT_SLIDE");
     syncStageToCurrentSlide();
 }
 
@@ -874,6 +877,7 @@ void SamplerBackend::nextSlide()
     if (!slide || m_currentMediaIndex + 1 >= playableMediaCount(*slide))
         return;
     ++m_currentMediaIndex;
+    sendHostMessage("NEXT_SLIDE");
     showSlideMedia();
 }
 
@@ -883,6 +887,7 @@ void SamplerBackend::previousSlide()
     if (!slide || m_currentMediaIndex <= 0)
         return;
     --m_currentMediaIndex;
+    sendHostMessage("NEXT_SLIDE");
     showSlideMedia();
 }
 
@@ -893,9 +898,10 @@ void SamplerBackend::playPreviewMedia(int previewIndex, int action)
         return;
     m_currentMediaIndex = previewIndex;
     m_previewItems.dim(previewIndex);
+    sendHostMessage("NEXT_SLIDE");
     showSlideMedia();
     if (action == 1 && m_samples.rowCount() > 0)
-        startPlayback(&m_samples, 0, true);
+        playSample(0);
     else if (action == 2)
         playFixedSample(1);
 }

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(CPlusEventSampler VERSION 0.1 LANGUAGES CXX)
+project(CPlusEventSampler VERSION 1.0.3 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC_COMPILER_PREDEFINES OFF)
@@ -15,7 +15,7 @@ if(APPLE AND NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum macOS deployment target" FORCE)
 endif()
 
-find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 Multimedia Network Widgets Svg Test)
+find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 Multimedia Network Widgets Svg)
 
 qt_standard_project_setup(REQUIRES 6.5)
 

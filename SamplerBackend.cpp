@@ -1693,11 +1693,13 @@ void SamplerBackend::generateVideoThumbnail(const QString &mediaPath)
     player->setAudioOutput(dummyAudio.data());
 
     auto cleanup = [this, player, thumbPath]() {
+        if (!m_pendingThumbnails.contains(thumbPath))
+            return;
+        m_pendingThumbnails.remove(thumbPath);
         if (player) {
             player->stop();
             player->deleteLater();
         }
-        m_pendingThumbnails.remove(thumbPath);
     };
 
     QTimer::singleShot(3000, this, [cleanup]() {

@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
 #endif
     app.setApplicationName("BOSTONCREW SAMPLER");
     app.setApplicationDisplayName("BOSTONCREW SAMPLER");
-    app.setApplicationVersion("1.0.0");
+    app.setApplicationVersion("1.0.3");
     app.setOrganizationName("BOSTONCREW");
     app.setWindowIcon(QIcon(":/assets/app_icon.png"));
 

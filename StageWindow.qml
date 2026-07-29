@@ -91,7 +91,7 @@ Window {
 
         var loadingIndex = stage.activeSurfaceIndex === 0 ? 1 : 0
         var loadingSurface = stage.surfaceAt(loadingIndex)
-        loadingSurface.loadMedia(targetUrl, stage.requestedMediaIsVideo, stage.requestedMediaRepeats, stage.layoutGeneration, stage.requestedBackgroundUrl, stage.requestedBackgroundRepeats, stage.requestedMediaCrossfade)
+        loadingSurface.loadMedia(targetUrl, stage.requestedMediaIsVideo, stage.requestedMediaRepeats, stage.layoutGeneration, stage.requestedBackgroundUrl, stage.requestedBackgroundRepeats)
     }
 
     function commitSurface(index) {

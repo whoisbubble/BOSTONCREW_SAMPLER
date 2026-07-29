@@ -1,5 +1,5 @@
 #define MyAppName "BOSTONCREW SAMPLER"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.3"
 #define MyAppPublisher "BOSTONCREW"
 #define MyAppExeName "BOSTONCREW SAMPLER.exe"
 

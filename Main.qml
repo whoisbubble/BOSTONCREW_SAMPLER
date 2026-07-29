@@ -23,7 +23,10 @@ ApplicationWindow {
     // qmllint enable unqualified
     readonly property bool maximized: visibility === Window.Maximized
 
-    onClosing: root.backend.saveAll()
+    onClosing: {
+        stageWindow.close()
+        root.backend.saveAll()
+    }
 
     background: Rectangle {
         color: "transparent"
@@ -73,7 +76,6 @@ ApplicationWindow {
                 onMinimizeRequested: root.showMinimized()
                 onMaximizeRequested: root.maximized ? root.showNormal() : root.showMaximized()
                 onCloseRequested: {
-                    root.backend.saveAll()
                     Qt.quit()
                 }
             }
@@ -239,6 +241,7 @@ ApplicationWindow {
     }
 
     StageWindow {
+        id: stageWindow
         backend: root.backend
         ownerX: root.x
         ownerY: root.y

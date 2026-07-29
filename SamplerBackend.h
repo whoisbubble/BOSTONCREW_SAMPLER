@@ -353,7 +353,7 @@ private:
     struct ActivePlayback {
         QPointer<QMediaPlayer> player;
         QPointer<QAudioOutput> output;
-        SampleListModel *model = nullptr;
+        QPointer<SampleListModel> model;
         int row = -1;
         QObject *ownedObject = nullptr;
     };

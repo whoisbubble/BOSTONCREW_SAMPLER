@@ -53,6 +53,7 @@ Item {
                     required property bool isDimmed
 
                     property bool localDimmed: false
+                    onFileUrlChanged: localDimmed = false
                     readonly property bool seen: tile.isDimmed || tile.localDimmed
 
                     width: workspace.tileWidth

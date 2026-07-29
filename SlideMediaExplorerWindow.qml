@@ -57,9 +57,9 @@ Window {
         mediaList = backend.getSlideMediaPaths(slideIndex)
     }
 
-    function isSelected(idx) {
-        for (var i = 0; i < selectedIndices.length; ++i) {
-            if (selectedIndices[i] === idx)
+    function isSelected(idx, arr) {
+        for (var i = 0; i < arr.length; ++i) {
+            if (arr[i] === idx)
                 return true
         }
         return false
@@ -464,7 +464,7 @@ Window {
                         required property int index
                         required property string modelData
 
-                        readonly property bool isSelected: explorerWindow.isSelected(tile.index)
+                        readonly property bool isSelected: explorerWindow.isSelected(tile.index, explorerWindow.selectedIndices)
                         readonly property bool isVideo: explorerWindow.backend ? explorerWindow.backend.isVideoPath(tile.modelData) : false
                         readonly property bool repeats: explorerWindow.backend ? explorerWindow.backend.librarySlideMediaRepeats(explorerWindow.slideIndex, tile.index) : false
                         readonly property bool hasCue: explorerWindow.backend ? explorerWindow.backend.librarySlideMediaHasCue(explorerWindow.slideIndex, tile.index) : false

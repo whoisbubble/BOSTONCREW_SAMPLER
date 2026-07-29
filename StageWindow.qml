@@ -195,22 +195,33 @@ Window {
             }
         }
 
+        Timer {
+            id: deferredClearTimer
+            interval: 100
+            repeat: false
+            onTriggered: {
+                surface.frameReady = false
+                surface.mainReady = false
+                surface.bgReady = false
+                surface.mediaUrl = ""
+                surface.isVideo = false
+                surface.repeats = false
+                surface.backgroundUrl = ""
+                surface.backgroundRepeats = false
+                surface.loadedGeneration = -1
+                stillImage.source = ""
+                surfacePlayer.stop()
+                surfacePlayer.source = ""
+                bgStillImage.source = ""
+                bgPlayer.stop()
+                bgPlayer.source = ""
+            }
+        }
+
         function clearSurface() {
-            surface.frameReady = false
-            surface.mainReady = false
-            surface.bgReady = false
-            surface.mediaUrl = ""
-            surface.isVideo = false
-            surface.repeats = false
-            surface.backgroundUrl = ""
-            surface.backgroundRepeats = false
-            surface.loadedGeneration = -1
-            stillImage.source = ""
-            surfacePlayer.stop()
-            surfacePlayer.source = ""
-            bgStillImage.source = ""
-            bgPlayer.stop()
-            bgPlayer.source = ""
+            if (surface.isVideo) surfacePlayer.pause()
+            if (bgPlayer.source.toString() !== "") bgPlayer.pause()
+            deferredClearTimer.start()
         }
 
         function loadMedia(url, video, shouldRepeat, generation, bgUrl, bgRepeats) {
@@ -222,6 +233,7 @@ Window {
                 return
             }
 
+            deferredClearTimer.stop()
             surface.frameReady = false
             surface.mainReady = false
             surface.bgReady = false
@@ -374,7 +386,7 @@ Window {
         }
 
         Connections {
-            target: bgVideo.videoSink
+            target: bgVideo.videoSink ? bgVideo.videoSink : null
 
             function onVideoFrameChanged() {
                 var bgIsVideo = surface.backgroundUrl.match(/\.(mp4|avi|wmv|mov|mkv|webm)$/i)
@@ -455,7 +467,7 @@ Window {
         }
 
         Connections {
-            target: surfaceVideo.videoSink
+            target: surfaceVideo.videoSink ? surfaceVideo.videoSink : null
 
             function onVideoFrameChanged() {
                 if (!surface.isVideo || surface.mediaUrl === "")

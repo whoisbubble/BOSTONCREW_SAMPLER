@@ -241,7 +241,7 @@ Item {
                                             iconName: "grid"
                                             enabled: row.available
                                             tip: "Проводник медиа слайда (отдельное окно)"
-                                            onClicked: slideExplorerWindow.openExplorer(row.index, row.folderName, library.Screen.desktopAvailableWidth / 2 - 500, library.Screen.desktopAvailableHeight / 2 - 350)
+                                            onClicked: slideExplorerWindow.openExplorer(row.index, row.folderName, Screen.desktopAvailableWidth / 2 - 500, Screen.desktopAvailableHeight / 2 - 350)
                                         }
 
                                         IconButton {
@@ -275,7 +275,7 @@ Item {
 
                                                         for (var i = 0; i < slideColumn.children.length; ++i) {
                                                             var child = slideColumn.children[i]
-                                                            if (child && child.visible !== false && child.height > 0 && child.index !== undefined) {
+                                                            if (child && child.visible !== false && child.height > 0 && child.hasOwnProperty("index") && typeof child.index === "number") {
                                                                 if (posInCol.y >= accumulatedY && posInCol.y <= accumulatedY + child.height + slideColumn.spacing) {
                                                                     targetIdx = child.index
                                                                     break
@@ -368,7 +368,7 @@ Item {
 
                                                         for (var i = 0; i < mediaRow.children.length; ++i) {
                                                             var child = mediaRow.children[i]
-                                                            if (child && child.visible !== false && child.width > 0 && child.index !== undefined) {
+                                                            if (child && child.visible !== false && child.width > 0 && child.hasOwnProperty("index") && typeof child.index === "number") {
                                                                 if (posInRow.x >= accumulatedX && posInRow.x <= accumulatedX + child.width + mediaRow.spacing) {
                                                                     targetIdx = child.index
                                                                     break

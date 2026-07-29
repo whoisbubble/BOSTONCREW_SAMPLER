@@ -1710,7 +1710,7 @@ void SamplerBackend::generateVideoThumbnail(const QString &mediaPath)
         cleanup();
     });
 
-    connect(sink.data(), &QVideoSink::videoFrameChanged, this, [this, cleanup, thumbPath](const QVideoFrame &frame) {
+    connect(sink.data(), &QVideoSink::videoFrameChanged, this, [this, cleanup, thumbPath, absPath](const QVideoFrame &frame) {
         if (!frame.isValid())
             return;
 
@@ -1718,8 +1718,12 @@ void SamplerBackend::generateVideoThumbnail(const QString &mediaPath)
         if (!img.isNull()) {
             QImage scaled = img.scaled(320, 180, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
             scaled.save(thumbPath, "JPG", 82);
-            QMetaObject::invokeMethod(this, [this]() {
-                m_librarySlides.notifyChanged(0);
+            QMetaObject::invokeMethod(this, [this, absPath]() {
+                for (int i = 0; i < m_librarySlides.rowCount(); ++i) {
+                    const SlideData *slide = m_librarySlides.at(i);
+                    if (slide && slide->mediaPaths.contains(absPath))
+                        m_librarySlides.notifyChanged(i);
+                }
                 refreshAssignedSlides();
                 emit stageChanged();
             }, Qt::QueuedConnection);
@@ -1847,7 +1851,7 @@ QString SamplerBackend::uniqueSlideName() const
 {
     int index = m_librarySlides.rowCount() + 1;
     QDir content(contentDir());
-    while (true) {
+    while (index < 100000) {
         const QString name = "NewSlide_" + QString::number(index);
         const bool inModel = std::any_of(m_librarySlides.items().cbegin(), m_librarySlides.items().cend(), [&name](const SlideData &slide) {
             return slide.folderName.compare(name, Qt::CaseInsensitive) == 0;
@@ -1856,6 +1860,7 @@ QString SamplerBackend::uniqueSlideName() const
             return name;
         ++index;
     }
+    return "NewSlide_" + QString::number(QDateTime::currentMSecsSinceEpoch());
 }
 
 QString SamplerBackend::uniqueFileName(const QString &directory, const QString &baseName, const QString &extension, int index) const
@@ -2682,6 +2687,12 @@ void SamplerBackend::handleSocketReadyRead()
 {
     m_socketBuffer += m_socket.readAll();
 
+    if (m_socketBuffer.size() > 10 * 1024 * 1024) { // 10MB limit
+        m_socketBuffer.clear();
+        m_socket.disconnectFromHost();
+        return;
+    }
+
     if (!m_webSocketReady) {
         const int headerEnd = m_socketBuffer.indexOf("\r\n\r\n");
         if (headerEnd < 0)
@@ -2791,6 +2802,11 @@ QByteArray SamplerBackend::takeWebSocketFrame()
             return QByteArray();
         mask = m_socketBuffer.mid(offset, 4);
         offset += 4;
+    }
+
+    if (length > static_cast<quint64>(INT_MAX)) {
+        m_socket.disconnectFromHost();
+        return QByteArray();
     }
 
     if (m_socketBuffer.size() < offset + static_cast<int>(length))

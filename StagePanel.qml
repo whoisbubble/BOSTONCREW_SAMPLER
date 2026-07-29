@@ -101,7 +101,7 @@ AppPanel {
         }
 
         Connections {
-            target: previewVideo.videoSink
+            target: previewVideo.videoSink ? previewVideo.videoSink : null
 
             function onVideoFrameChanged() {
                 if (panel.activePreviewVideoUrl !== "")

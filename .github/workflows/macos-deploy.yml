@@ -22,7 +22,7 @@ jobs:
       matrix:
         include:
           - package_arch: x64
-            runner: macos-13
+            runner: macos-15
             cmake_arch: x86_64
             deployment_target: "11.0"
             ffmpeg_arch: amd64

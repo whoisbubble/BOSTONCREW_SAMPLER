@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(CPlusEventSampler VERSION 1.0.3 LANGUAGES CXX)
+project(CPlusEventSampler VERSION 1.0.4 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC_COMPILER_PREDEFINES OFF)
@@ -55,6 +55,7 @@ qt_add_qml_module(appCPlusEventSampler
         AppIcon.qml
         AppModalOverlay.qml
         AppPanel.qml
+        AppScrollBar.qml
         AppSwitch.qml
         AppTextField.qml
         AppTheme.qml

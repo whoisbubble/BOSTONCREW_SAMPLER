@@ -17,8 +17,8 @@ Window {
         requestActivate()
     }
 
-    width: 620
-    height: 320
+    width: 820
+    height: 520
     minimumWidth: 460
     minimumHeight: 260
     visible: false

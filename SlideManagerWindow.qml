@@ -26,11 +26,13 @@ Window {
     color: "transparent"
     flags: Qt.Window | Qt.FramelessWindowHint
 
+    readonly property bool maximized: visibility === Window.Maximized
+
     Rectangle {
         id: shell
         anchors.fill: parent
-        anchors.margins: 6
-        radius: AppTheme.shellRadius
+        anchors.margins: manager.maximized ? 0 : 6
+        radius: manager.maximized ? 0 : AppTheme.shellRadius
         color: AppTheme.background
         border.color: AppTheme.border
         border.width: 1
@@ -47,11 +49,12 @@ Window {
 
                 MouseArea {
                     anchors.left: parent.left
-                    anchors.right: closeButton.left
+                    anchors.right: windowControls.left
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
                     acceptedButtons: Qt.LeftButton
                     onPressed: manager.startSystemMove()
+                    onDoubleClicked: manager.maximized ? manager.showNormal() : manager.showMaximized()
                 }
 
                 Text {
@@ -64,13 +67,23 @@ Window {
                     font.weight: Font.DemiBold
                 }
 
-                ChromeButton {
-                    id: closeButton
+                RowLayout {
+                    id: windowControls
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    iconName: "close"
-                    destructive: true
-                    onClicked: manager.hide()
+                    spacing: 4
+
+                    ChromeButton {
+                        iconName: manager.maximized ? "minimize" : "maximize"
+                        onClicked: manager.maximized ? manager.showNormal() : manager.showMaximized()
+                    }
+
+                    ChromeButton {
+                        id: closeButton
+                        iconName: "close"
+                        destructive: true
+                        onClicked: manager.hide()
+                    }
                 }
             }
 

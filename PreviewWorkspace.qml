@@ -29,6 +29,7 @@ Item {
         contentHeight: Math.max(height, previewGrid.childrenRect.height)
         boundsBehavior: Flickable.StopAtBounds
         flickableDirection: Flickable.VerticalFlick
+        ScrollBar.vertical: AppScrollBar {}
 
         Flow {
             id: previewGrid
@@ -168,20 +169,7 @@ Item {
         }
     }
 
-    Rectangle {
-        anchors.right: parent.right
-        anchors.rightMargin: 7
-        width: 3
-        height: previewFlick.visible && previewFlick.contentHeight > previewFlick.height
-            ? Math.max(28, previewFlick.height * previewFlick.height / previewFlick.contentHeight)
-            : 0
-        radius: 2
-        color: AppTheme.alpha(AppTheme.accent, 0.58)
-        y: previewFlick.y + (previewFlick.visible && previewFlick.contentHeight > previewFlick.height
-            ? previewFlick.contentY * (previewFlick.height - height) / (previewFlick.contentHeight - previewFlick.height)
-            : 0)
-        visible: height > 0
-    }
+    // Custom scrollbar removed since we use AppScrollBar
 
     ColumnLayout {
         anchors.centerIn: parent

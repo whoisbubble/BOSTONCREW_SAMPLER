@@ -91,12 +91,13 @@ Popup {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            spacing: 8
+            spacing: 0
             model: popup.backend.librarySlides
             boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: AppScrollBar {}
 
-            delegate: Rectangle {
-                id: row
+            delegate: Item {
+                id: wrapper
 
                 required property int index
                 required property string folderName
@@ -104,18 +105,23 @@ Popup {
                 required property int mediaCount
                 required property bool hasSample
 
-                readonly property bool matchesSearch: popup.slideMatches(row.folderName, row.slideType)
-                readonly property bool available: popup.backend.librarySlideAvailable(row.index)
+                readonly property bool matchesSearch: popup.slideMatches(wrapper.folderName, wrapper.slideType)
+                readonly property bool available: popup.backend.librarySlideAvailable(wrapper.index)
 
                 width: ListView.view ? ListView.view.width : 380
-                height: row.matchesSearch ? 58 : 0
-                visible: row.matchesSearch
-                opacity: row.available ? 1.0 : 0.42
-                radius: AppTheme.tileRadius
-                color: rowMouse.containsMouse ? AppTheme.tileHover : AppTheme.tile
-                border.color: AppTheme.border
-                border.width: 1
-                clip: true
+                height: matchesSearch ? 58 + 8 : 0
+                visible: matchesSearch
+
+                Rectangle {
+                    id: row
+                    width: parent.width
+                    height: 58
+                    opacity: wrapper.available ? 1.0 : 0.42
+                    radius: AppTheme.tileRadius
+                    color: rowMouse.containsMouse ? AppTheme.tileHover : AppTheme.tile
+                    border.color: AppTheme.border
+                    border.width: 1
+                    clip: true
 
                 RowLayout {
                     anchors.fill: parent
@@ -135,7 +141,7 @@ Popup {
 
                         Text {
                             Layout.fillWidth: true
-                            text: row.folderName
+                            text: wrapper.folderName
                             color: AppTheme.text
                             font.family: AppTheme.fontFamily
                             font.pixelSize: 12
@@ -145,7 +151,7 @@ Popup {
 
                         Text {
                             Layout.fillWidth: true
-                            text: row.slideType + " / " + row.mediaCount + (row.hasSample ? " + cue" : "")
+                            text: wrapper.slideType + " / " + wrapper.mediaCount + (wrapper.hasSample ? " + cue" : "")
                             color: AppTheme.muted
                             font.family: AppTheme.fontFamily
                             font.pixelSize: 10
@@ -159,15 +165,16 @@ Popup {
                     anchors.fill: parent
                     hoverEnabled: true
                     onClicked: {
-                        if (!row.available) {
-                            popup.backend.assignQuickSlide(popup.quickIndex, row.index)
+                        if (!wrapper.available) {
+                            popup.backend.assignQuickSlide(popup.quickIndex, wrapper.index)
                             return
                         }
-                        popup.backend.assignQuickSlide(popup.quickIndex, row.index)
+                        popup.backend.assignQuickSlide(popup.quickIndex, wrapper.index)
                         popup.close()
                     }
                 }
-            }
+                } // End Rectangle
+            } // End Item
         }
     }
 }

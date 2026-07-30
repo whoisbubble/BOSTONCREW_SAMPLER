@@ -456,6 +456,7 @@ Window {
                     cellWidth: 180
                     cellHeight: 135
                     boundsBehavior: Flickable.StopAtBounds
+                    ScrollBar.vertical: AppScrollBar {}
                     model: explorerWindow.mediaList
 
                     delegate: Rectangle {

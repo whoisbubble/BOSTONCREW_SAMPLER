@@ -36,6 +36,7 @@ AppPanel {
             contentHeight: Math.max(sampleFlow.childrenRect.height, height)
             clip: true
             boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: AppScrollBar {}
 
             Flow {
                 id: sampleFlow

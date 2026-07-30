@@ -57,7 +57,7 @@ Popup {
         AppTextField {
             Layout.fillWidth: true
             text: dialog.slideType
-            placeholderText: "Type"
+            placeholderText: "Type / Tags (e.g. ДЕТСКИЙ ФОРМАТ)"
             onTextChanged: dialog.slideType = text
         }
 

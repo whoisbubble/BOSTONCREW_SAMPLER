@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(CPlusEventSampler VERSION 1.0.5 LANGUAGES CXX)
+project(CPlusEventSampler VERSION 1.0.6 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC_COMPILER_PREDEFINES OFF)

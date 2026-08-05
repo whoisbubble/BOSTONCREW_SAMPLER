@@ -53,7 +53,7 @@ jobs:
       APPLE_ID: ${{ secrets.APPLE_ID }}
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-      RELEASE_NOTES_PATH: docs/releases/free-v1.0.3.md
+      RELEASE_NOTES_PATH: docs/releases/free-v1.0.6.md
 
     steps:
       - name: Checkout

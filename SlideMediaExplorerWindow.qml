@@ -147,9 +147,9 @@ Window {
     flags: Qt.Window | Qt.FramelessWindowHint
 
     Connections {
-        target: explorerWindow.backend
-        function onLibrarySlidesChanged() {
-            if (explorerWindow.slideIndex >= 0)
+        target: explorerWindow.backend ? explorerWindow.backend.librarySlides : null
+        function onDataChanged(topLeft, bottomRight, roles) {
+            if (explorerWindow.slideIndex >= topLeft.row && explorerWindow.slideIndex <= bottomRight.row)
                 explorerWindow.refreshMediaList()
         }
     }

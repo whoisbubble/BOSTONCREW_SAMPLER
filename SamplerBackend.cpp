@@ -900,8 +900,8 @@ void SamplerBackend::playPreviewMedia(int previewIndex, int action)
     m_currentMediaIndex = previewIndex;
     m_previewItems.dim(previewIndex);
     showSlideMedia();
-    if (action == 1 && m_samples.rowCount() > 0)
-        playSample(0);
+    if (action == 1 && m_fixedSamples.rowCount() > 0)
+        playFixedSample(0);
     else if (action == 2)
         playFixedSample(1);
 }
@@ -997,14 +997,18 @@ void SamplerBackend::deleteLibrarySlide(int index)
     if (!slide)
         return;
     const QString catalog = absolutePath(slide->catalogPath);
-    if (!catalog.isEmpty()
-        && isManagedPath(catalog)
-        && QDir::cleanPath(catalog) != QDir::cleanPath(contentDir()))
-        QDir(catalog).removeRecursively();
+    const bool isManaged = !catalog.isEmpty() && isManagedPath(catalog) && QDir::cleanPath(catalog) != QDir::cleanPath(contentDir());
+    
     m_librarySlides.removeAt(index);
     refreshAssignedSlides();
     saveSlides();
     saveQuickSlides();
+    
+    if (isManaged) {
+        QTimer::singleShot(1000, nullptr, [catalog]() {
+            QDir(catalog).removeRecursively();
+        });
+    }
 }
 
 QStringList SamplerBackend::getSlideMediaPaths(int slideIndex) const
@@ -1832,8 +1836,11 @@ bool SamplerBackend::isManagedPath(const QString &path) const
 void SamplerBackend::cleanupStoredFile(const QString &storedPath) const
 {
     const QString absolute = absolutePath(storedPath);
-    if (!absolute.isEmpty() && isManagedPath(absolute) && QFileInfo(absolute).isFile())
-        QFile::remove(absolute);
+    if (!absolute.isEmpty() && isManagedPath(absolute) && QFileInfo(absolute).isFile()) {
+        QTimer::singleShot(1000, nullptr, [absolute]() {
+            QFile::remove(absolute);
+        });
+    }
 }
 
 QString SamplerBackend::cleanFolderName(const QString &name) const

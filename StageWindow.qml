@@ -184,12 +184,16 @@ Window {
 
             if (isBgReady && isMainReady) {
                 surface.frameReady = true;
-                if (surface.isVideo && !surface.active)
+                if (surface.isVideo && !surface.active) {
                     surfacePlayer.pause();
+                    surfacePlayer.setPosition(0);
+                }
                 
                 var bgIsVideo = surface.backgroundUrl.match(/\.(mp4|avi|wmv|mov|mkv|webm)$/i);
-                if (bgIsVideo && !surface.active)
+                if (bgIsVideo && !surface.active) {
                     bgPlayer.pause();
+                    bgPlayer.setPosition(0);
+                }
 
                 surface.readyForCommit(surface.surfaceIndex);
             }

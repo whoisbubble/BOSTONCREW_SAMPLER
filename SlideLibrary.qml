@@ -139,7 +139,10 @@ Item {
 
                             Image {
                                 anchors.fill: parent
-                                source: row.mediaPaths.length > 0 ? library.backend.thumbnailUrl(row.mediaPaths[0]) : ""
+                                source: {
+                                    var dummy = library.backend.thumbnailUpdateCount;
+                                    return row.mediaPaths.length > 0 ? library.backend.thumbnailUrl(row.mediaPaths[0]) : ""
+                                }
                                 sourceSize.width: width
                                 sourceSize.height: height
                                 fillMode: Image.PreserveAspectCrop

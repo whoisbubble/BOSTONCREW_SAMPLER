@@ -194,6 +194,7 @@ class SamplerBackend final : public QObject
     Q_PROPERTY(int currentSlideIndex READ currentSlideIndex NOTIFY stageChanged)
     Q_PROPERTY(int currentMediaIndex READ currentMediaIndex NOTIFY stageChanged)
     Q_PROPERTY(bool connected READ connected NOTIFY connectionChanged)
+    Q_PROPERTY(int thumbnailUpdateCount READ thumbnailUpdateCount NOTIFY thumbnailUpdateCountChanged)
     Q_PROPERTY(QString statusMessage READ statusMessage NOTIFY statusMessageChanged)
     Q_PROPERTY(QString savedHost READ savedHost WRITE setSavedHost NOTIFY savedHostChanged)
 
@@ -238,6 +239,7 @@ public:
     int currentSlideIndex() const;
     int currentMediaIndex() const;
     bool connected() const;
+    int thumbnailUpdateCount() const { return m_thumbnailUpdateCount; }
     qint64 stageVideoPosition() const;
     qint64 stageVideoDuration() const;
     QString stageVideoTimeText() const;
@@ -348,6 +350,7 @@ signals:
     void stageVideoRestartRequested();
     void stageVideoTimeChanged();
     void autoJinglesStateChanged();
+    void thumbnailUpdateCountChanged();
 
 private:
     struct ActivePlayback {
@@ -464,4 +467,5 @@ private:
     int m_stageHeight = 720;
     QPointer<QScreen> m_stageScreen;
     QSet<QString> m_pendingThumbnails;
+    int m_thumbnailUpdateCount = 0;
 };

@@ -900,8 +900,8 @@ void SamplerBackend::playPreviewMedia(int previewIndex, int action)
     m_currentMediaIndex = previewIndex;
     m_previewItems.dim(previewIndex);
     showSlideMedia();
-    if (action == 1 && m_fixedSamples.rowCount() > 0)
-        playFixedSample(0);
+    if (action == 1 && m_samples.rowCount() > 0)
+        playSample(0);
     else if (action == 2)
         playFixedSample(1);
 }
@@ -1723,6 +1723,8 @@ void SamplerBackend::generateVideoThumbnail(const QString &mediaPath)
             QImage scaled = img.scaled(320, 180, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
             scaled.save(thumbPath, "JPG", 82);
             QMetaObject::invokeMethod(this, [this, absPath]() {
+                m_thumbnailUpdateCount++;
+                emit thumbnailUpdateCountChanged();
                 for (int i = 0; i < m_librarySlides.rowCount(); ++i) {
                     const SlideData *slide = m_librarySlides.at(i);
                     if (slide && slide->mediaPaths.contains(absPath))
@@ -2348,6 +2350,16 @@ bool SamplerBackend::startPlayback(SampleListModel *model, int row, bool showErr
 
     if (sample->stopSounds)
         removeActiveExcept(model, row);
+
+    for (int i = m_activePlaybacks.count() - 1; i >= 0; --i) {
+        ActivePlayback &active = m_activePlaybacks[i];
+        if (active.model) {
+            SampleData *activeSample = active.model->at(active.row);
+            if (activeSample && absolutePath(activeSample->path) == path) {
+                cleanupPlaybackEntry(i, true);
+            }
+        }
+    }
 
     while (m_activePlaybacks.count() >= MaxActivePlaybacks)
         cleanupPlaybackEntry(0, true);

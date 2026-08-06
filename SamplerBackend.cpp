@@ -1688,7 +1688,17 @@ void SamplerBackend::generateVideoThumbnail(const QString &mediaPath)
 
     m_pendingThumbnails.insert(thumbPath);
 
-    QPointer<QMediaPlayer> player = new QMediaPlayer(this);
+    static int s_thumbnailDelay = 0;
+    s_thumbnailDelay += 250;
+
+    QTimer::singleShot(s_thumbnailDelay, this, [this, absPath, thumbPath]() {
+        s_thumbnailDelay -= 250;
+        if (s_thumbnailDelay < 0) s_thumbnailDelay = 0;
+
+        if (!m_pendingThumbnails.contains(thumbPath))
+            return;
+
+        QPointer<QMediaPlayer> player = new QMediaPlayer(this);
     QPointer<QVideoSink> sink = new QVideoSink(player.data());
     player->setVideoSink(sink.data());
 
@@ -1739,6 +1749,7 @@ void SamplerBackend::generateVideoThumbnail(const QString &mediaPath)
 
     player->setSource(QUrl::fromLocalFile(absPath));
     player->play();
+    });
 }
 
 bool SamplerBackend::isVideoPath(const QString &path) const
@@ -2351,12 +2362,15 @@ bool SamplerBackend::startPlayback(SampleListModel *model, int row, bool showErr
     if (sample->stopSounds)
         removeActiveExcept(model, row);
 
-    for (int i = m_activePlaybacks.count() - 1; i >= 0; --i) {
-        ActivePlayback &active = m_activePlaybacks[i];
-        if (active.model) {
-            SampleData *activeSample = active.model->at(active.row);
-            if (activeSample && absolutePath(activeSample->path) == path) {
-                cleanupPlaybackEntry(i, true);
+    bool allowOverlap = (model == &m_samples || model == &m_fixedSamples);
+    if (!allowOverlap) {
+        for (int i = m_activePlaybacks.count() - 1; i >= 0; --i) {
+            ActivePlayback &active = m_activePlaybacks[i];
+            if (active.model) {
+                SampleData *activeSample = active.model->at(active.row);
+                if (activeSample && absolutePath(activeSample->path) == path) {
+                    cleanupPlaybackEntry(i, true);
+                }
             }
         }
     }
